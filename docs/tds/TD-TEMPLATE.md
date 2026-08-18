@@ -1,4 +1,4 @@
-# ADR-XXX — Decision title
+# TD-XXX — Decision title
 
 ## Status
 
