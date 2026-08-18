@@ -39,7 +39,11 @@ After setup, start the development server:
 php artisan serve
 ```
 
-Visit [http://localhost:8000](http://localhost:8000) — you should see the Laravel welcome page.
+Visit [http://localhost:8000](http://localhost:8000) — you should see the home page. Additionally, if you are in a development environment, the Vite API must be started simultaneously:
+
+```bash
+npm run dev
+```
 
 ### Running tests
 
