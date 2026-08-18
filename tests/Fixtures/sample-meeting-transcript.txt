@@ -1,0 +1,25 @@
+Meeting: AI Meeting Notes - Demo Planning
+Date: 2026-08-20
+
+Participants:
+- Ana - Product
+- Bruno - Backend
+- Carla - QA
+
+Transcript:
+
+Ana: Today we need to decide what functionality will be included in the first demo.
+
+Bruno: The meeting notes input is ready for testing.
+
+Carla: I think we should test the analysis using the same sample transcript every time.
+
+Ana: Agreed. We will use a fixed sample meeting transcript for the initial demo.
+
+Bruno: I will prepare the meeting input validation by 2026-08-25. This task has high priority.
+
+Carla: I will prepare the acceptance test cases by 2026-08-27. This task has medium priority.
+
+Ana: We still need to decide which AI provider will be used for the production version.
+
+Bruno: That decision can remain open until the provider evaluation is completed.

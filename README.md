@@ -148,7 +148,11 @@ If you prefer to run each step individually:
 
 ```bash
 composer install
+./vendor/bin/pint --test
+
+Copy-Item .env.example .env
 cp .env.example .env
+
 php artisan key:generate
 php artisan migrate
 npm install
