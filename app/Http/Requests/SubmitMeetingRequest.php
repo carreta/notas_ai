@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Rules\SafeText;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,29 @@ class SubmitMeetingRequest extends FormRequest
         return [
             'meeting-title' => ['required', 'string', 'max:255'],
             'meeting-date' => ['required', 'date', 'before_or_equal:today'],
-            'transcript' => ['required', 'string', "max:{$maxChars}", new SafeText],
+
+            'transcript' => [
+                'required',
+                'string',
+                "max:{$maxChars}",
+                new SafeText,
+
+                // Custom validation rule to check word count (TD-001)
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    // Split the transcript by whitespace to count the total number of words.
+                    $words = preg_split(
+                        '/\s+/u',
+                        trim($value),
+                        -1,
+                        PREG_SPLIT_NO_EMPTY
+                    );
+
+                    if (count($words) > 13500) {
+                        $fail('The meeting transcript must not exceed 13,500 words.');
+                    }
+                },
+            ],
+
             'model' => ['required', 'string', Rule::in($modelKeys)],
         ];
     }
