@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Validation\HasMeetingValidation;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
+use App\Models\Meeting;
 
 class AnalyzeForm extends Component
 {
@@ -116,11 +117,30 @@ class AnalyzeForm extends Component
     {
         $this->setStage('saving'); // 25%
 
-        // TODO:
-        // Persist the meeting/transcript here.
+        try {
+            Meeting::create([
+                'title' => $this->meeting_title,
+                'raw_text' => $this->meeting_text,
+                'status' => 'DRAFT',
+                'meeting_time' => $this->meeting_date,
+            ]);
+        } catch (\Throwable $exception) {
+            $this->addError(
+                'meeting_text',
+                'The meeting could not be saved. Please try again.'
+            );
 
-        // FR-002 will handle actual persistence
-        // Simulate async work with next-tick dispatches
+            $this->setStage('idle');
+
+            report($exception);
+
+            return;
+        }
+
+        // Persistence succeeded.
+        // For now, intentionally stop here.
+        // Later this can become an asyncronous process that calls the AI and stores the results.:
+        // $this->analyze();
     }
 
     public function analyze(): void
