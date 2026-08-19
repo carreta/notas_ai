@@ -78,7 +78,14 @@ class AnalyzeForm extends Component
     // 3. Successful validation: stage remains at validating, Alpine waits one second, Alpine calls save()
     public function submit(): void
     {
-        // precheck
+        $this->setStage('validating');
+        
+        $this->dispatch('validation-started');
+    }
+
+    public function validation(): void
+    {
+        // precheck, required fields and character limits.
         try {
             $this->validate(
                 $this->preValidationRules(),
@@ -89,10 +96,17 @@ class AnalyzeForm extends Component
 
             throw $exception;
         }
+
+        // token analysis
+        try {
+            $this->validateTokenLimit();
+        } catch (ValidationException $exception) {
+            $this->setStage('idle');
+
+            throw $exception;
+        }
         
         // validation
-        $this->setStage('validating');
-
         try {
             $this->validate(
                 $this->rules($this->models),

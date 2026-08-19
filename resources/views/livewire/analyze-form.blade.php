@@ -54,6 +54,10 @@
             return texts[$wire.stage] ?? 'Start Analysis';
         }
     }"
+    {{-- Validation process started --}}
+    x-on:validation-started.window="
+        $wire.validation();
+    "
 
     {{-- Successful validation has completed. Give the user a brief
          processing delay before starting the save stage. --}}

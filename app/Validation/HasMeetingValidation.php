@@ -4,6 +4,7 @@ namespace App\Validation;
 
 use App\Rules\SafeText;
 use Illuminate\Validation\Rule;
+use App\Support\TokenCounter;
 
 trait HasMeetingValidation
 {
@@ -19,27 +20,37 @@ trait HasMeetingValidation
         ];
     }
 
+    protected function validateTokenLimit(): void
+    {
+        $modelKey = $this->model ?? 'chatgpt-sol';
+
+        $config = $this->models[$modelKey] ?? [];
+        $maxTokens = $config['max_tokens'] ?? 20000;
+        $encoding = $config['encoding'] ?? 'cl100k_base';
+
+        $tokenCounter = app(TokenCounter::class);
+        $tokens = $tokenCounter->count($this->meeting_text, $encoding);
+        if ($tokens > $maxTokens) {
+            throw ValidationException::withMessages([
+                'meeting_text' =>
+                    "The meeting text exceeds the token limit " .
+                    "({$maxTokens} tokens). Current: {$tokens} tokens.",
+            ]);
+        }
+    }
 
     protected function rules(array $modelConfig): array
     {
         $modelKey = $this->model ?? 'chatgpt-sol';
-        $maxChars = $modelConfig[$modelKey]['max_chars'] ?? 50000;
-        $maxTokens = $modelConfig[$modelKey]['max_tokens'] ?? 20000;
-        $modelKeys = array_keys($modelConfig);
 
+        $config = $modelConfig[$modelKey] ?? [];
+        $maxChars = $config['max_chars'] ?? 50000;
+        $maxTokens = $config['max_tokens'] ?? 20000;
+        $encoding = $config['encoding'] ?? 'cl100k_base';
+        $modelKeys = array_keys($modelConfig);
+        
         return [
-            'meeting_text' => [
-                'required',
-                'string',
-                "max:{$maxChars}",
-                new SafeText,
-                function ($attribute, $value, $fail) use ($maxTokens) {
-                    $tokens = (int) ceil(mb_strlen($value) / 4);
-                    if ($tokens > $maxTokens) {
-                        $fail("The {$attribute} exceeds the token limit ({$maxTokens} tokens). Estimated: {$tokens} tokens.");
-                    }
-                },
-            ],
+            'meeting_text' => ['required', 'string', new SafeText,],
             'model' => ['required', 'string', Rule::in($modelKeys)],
             'meeting_title' => ['required', 'string', 'max:255', new SafeText,],
             'meeting_date' => ['nullable', 'date', 'before_or_equal:today'],
