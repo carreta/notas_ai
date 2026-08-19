@@ -141,6 +141,7 @@ class AnalyzeForm extends Component
         // For now, intentionally stop here.
         // Later this can become an asyncronous process that calls the AI and stores the results.:
         // $this->analyze();
+        $this->dispatch('save-passed');
     }
 
     public function analyze(): void
@@ -154,7 +155,8 @@ class AnalyzeForm extends Component
         // move it to a Laravel queued Job rather than
         // blocking the Livewire request.
 
-        $this->store();
+        // Currently stops here. Later this can become an asyncronous process that stores the results:
+        // $this->store();
     }
 
     public function store(): void

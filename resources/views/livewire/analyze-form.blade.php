@@ -62,6 +62,14 @@
             $wire.save();
         }, 1000)
     "
+
+    {{-- Data successfully saved has completed. Give the user a brief
+         processing delay before starting the save stage. --}}
+    x-on:save-passed.window="
+        setTimeout(() => {
+            $wire.analyze();
+        }, 1000)
+    "
 >
     @php
         $isProcessing = in_array($stage, [

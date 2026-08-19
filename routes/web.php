@@ -3,6 +3,7 @@
 use App\Http\Controllers\AnalyzeController;
 use App\Http\Controllers\DebugController;
 use App\Http\Controllers\HistoryController;
+use App\Http\Controllers\MeetingController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [AnalyzeController::class, 'index'])->name('home');
