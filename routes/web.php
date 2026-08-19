@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\MeetingController;
-use App\Http\Controllers\PageController;
+use App\Http\Controllers\AnalyzeController;
+use App\Http\Controllers\DebugController;
+use App\Http\Controllers\HistoryController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [PageController::class, 'home'])->name('home');
-Route::get('/history', [PageController::class, 'history'])->name('history');
-Route::get('/debug', [PageController::class, 'debug'])->name('debug');
-Route::post('/analyze', [MeetingController::class, 'store'])->name('meetings.store');
+Route::get('/', [AnalyzeController::class, 'index'])->name('home');
+Route::get('/history', [HistoryController::class, 'index'])->name('history');
+Route::get('/debug', [DebugController::class, 'index'])->name('debug');
