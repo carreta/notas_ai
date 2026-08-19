@@ -3,7 +3,7 @@
 namespace Tests\Unit;
 
 use App\Support\TokenCounter;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class TokenCounterTest extends TestCase
 {
@@ -15,12 +15,12 @@ class TokenCounterTest extends TestCase
         $this->counter = new TokenCounter;
     }
 
-    public function test_count_returns_four_per_character_ratio(): void
+    public function test_count_returns_correct_token_count_for_ascii(): void
     {
-        // 100 characters / 4 = 25 tokens
+        // 100 'a' characters = 13 tokens with cl100k_base encoding
         $text = str_repeat('a', 100);
 
-        $this->assertSame(25, $this->counter->count($text));
+        $this->assertSame(13, $this->counter->count($text));
     }
 
     public function test_count_handles_empty_string(): void
@@ -30,44 +30,44 @@ class TokenCounterTest extends TestCase
 
     public function test_count_handles_single_character(): void
     {
-        // ceil(1 / 4) = 1
+        // Single 'a' = 1 token
         $this->assertSame(1, $this->counter->count('a'));
     }
 
     public function test_count_handles_partial_token(): void
     {
-        // ceil(5 / 4) = 2
+        // 'abcde' = 2 tokens
         $this->assertSame(2, $this->counter->count('abcde'));
     }
 
     public function test_count_handles_unicode_multibyte(): void
     {
-        // 10 multibyte chars (é) — mb_strlen counts 10
-        // 10 / 4 = 2.5 → ceil = 3
+        // 10 'é' characters = 10 tokens (each is a separate token in cl100k_base)
         $text = str_repeat('é', 10);
 
-        $this->assertSame(3, $this->counter->count($text));
+        $this->assertSame(10, $this->counter->count($text));
     }
 
     public function test_exceeds_limit_returns_true_when_over(): void
     {
-        // 41 chars / 4 = 10.25 → 11 tokens
+        // 41 'a' characters = 6 tokens, exceeds limit of 5
         $text = str_repeat('a', 41);
 
-        $this->assertTrue($this->counter->exceedsLimit($text, 10));
+        $this->assertTrue($this->counter->exceedsLimit($text, 5));
     }
 
     public function test_exceeds_limit_returns_false_when_equal(): void
     {
-        // 40 chars / 4 = 10 tokens (exactly at limit)
+        // 40 'a' characters = 6 tokens, limit is 6 (exactly at limit)
         $text = str_repeat('a', 40);
 
-        $this->assertFalse($this->counter->exceedsLimit($text, 10));
+        $this->assertFalse($this->counter->exceedsLimit($text, 6));
     }
 
     public function test_exceeds_limit_returns_false_when_under(): void
     {
-        $text = str_repeat('a', 36); // 9 tokens
+        // 36 'a' characters = 5 tokens, limit is 10
+        $text = str_repeat('a', 36);
 
         $this->assertFalse($this->counter->exceedsLimit($text, 10));
     }

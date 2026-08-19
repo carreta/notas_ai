@@ -2,10 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\SubmitMeetingRequest;
 use App\Models\Meeting;
-use App\Support\TokenCounter;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 
 // TODO: This is a temporary file for the purpose of comparing to view json data for meeting tables. It is not intended to be used in production and should be deleted after history page is implemented.

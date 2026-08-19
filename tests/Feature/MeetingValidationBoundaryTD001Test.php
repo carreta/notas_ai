@@ -53,8 +53,6 @@ class MeetingValidationBoundaryTD001Test extends TestCase
             ])
         );
 
-        
-
         $response->assertSessionHasErrors('transcript');
 
         $this->assertDatabaseCount('meetings', 0);

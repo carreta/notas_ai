@@ -16,11 +16,12 @@ class TokenCounter
             mkdir($cachePath, 0755, true);
         }
 
-        $this->provider = new EncoderProvider();
+        $this->provider = new EncoderProvider;
         $this->provider->setVocabCache($cachePath);
     }
 
-    public function count(string $text, string $encoding): int {
+    public function count(string $text, string $encoding = 'cl100k_base'): int
+    {
         if ($text === '') {
             return 0;
         }
@@ -28,5 +29,10 @@ class TokenCounter
         $encoder = $this->provider->get($encoding);
 
         return count($encoder->encode($text));
+    }
+
+    public function exceedsLimit(string $text, int $limit, string $encoding = 'cl100k_base'): bool
+    {
+        return $this->count($text, $encoding) > $limit;
     }
 }

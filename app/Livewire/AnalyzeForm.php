@@ -2,10 +2,10 @@
 
 namespace App\Livewire;
 
+use App\Models\Meeting;
 use App\Validation\HasMeetingValidation;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
-use App\Models\Meeting;
 
 class AnalyzeForm extends Component
 {
@@ -28,17 +28,13 @@ class AnalyzeForm extends Component
     public int $maxTokens = 20000;
 
     public array $errorDescriptions = [
-        'meeting_text' =>
-            'The transcript must not exceed the character/token limit for the selected model and must not contain unsafe content.',
+        'meeting_text' => 'The transcript must not exceed the character/token limit for the selected model and must not contain unsafe content.',
 
-        'meeting_title' =>
-            'A title is required to identify this analysis. Maximum 255 characters.',
+        'meeting_title' => 'A title is required to identify this analysis. Maximum 255 characters.',
 
-        'meeting_date' =>
-            'The date must be a valid date and cannot be in the future.',
+        'meeting_date' => 'The date must be a valid date and cannot be in the future.',
 
-        'model' =>
-            'Please select a valid model from the dropdown.',
+        'model' => 'Please select a valid model from the dropdown.',
     ];
 
     public function mount(array $models): void
@@ -59,7 +55,7 @@ class AnalyzeForm extends Component
     {
         $this->syncModelLimits();
     }
-    
+
     private function syncModelLimits(): void
     {
         $this->maxChars = $this->models[$this->model]['max_chars'] ?? 50000;
@@ -71,15 +67,15 @@ class AnalyzeForm extends Component
         $this->stage = $stage;
     }
 
-    
     // Submit flow:
     // 1. Basic pre-validation: required fields, maximum character limits
-    // 2. Full validation: SafeText, token limits, date, model, etc. If an validation error occurs, the stage is reset to idle and the error is displayed.
+    // 2. Full validation: SafeText, token limits, date, model, etc. If a validation error occurs, the stage is reset to idle and the error is displayed.
     // 3. Successful validation: stage remains at validating, Alpine waits one second, Alpine calls save()
     public function submit(): void
     {
         $this->setStage('validating');
-        
+
+        // Run the full validation pipeline
         $this->dispatch('validation-started');
     }
 
@@ -105,7 +101,7 @@ class AnalyzeForm extends Component
 
             throw $exception;
         }
-        
+
         // validation
         try {
             $this->validate(
@@ -113,7 +109,7 @@ class AnalyzeForm extends Component
                 $this->messages()
             );
         } catch (ValidationException $exception) {
-            // Something such as SafeText, token validation, date validation, etc. failed. 
+            // Something such as SafeText, token validation, date validation, etc. failed.
             // Cancel the processing stage and return to idle.
             $this->setStage('idle');
 
