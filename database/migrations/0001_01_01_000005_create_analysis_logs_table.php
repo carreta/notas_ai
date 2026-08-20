@@ -51,3 +51,27 @@ return new class extends Migration
         Schema::dropIfExists('analysis_logs');
     }
 };
+
+
+
+/**
+
+Doing it manually starts working.
+
+INSERT INTO prompt_templates (
+    id,
+    version,
+    system_prompt,
+    json_schema,
+    is_active,
+    created_at
+)
+VALUES (
+    gen_random_uuid(),
+    'meeting-analysis-v1',
+    'system',
+    '{"version":"meeting-analysis-v1"}',
+    true,
+    NOW()
+);
+*/
