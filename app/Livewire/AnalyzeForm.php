@@ -27,6 +27,8 @@ class AnalyzeForm extends Component
 
     public int $maxTokens = 20000;
 
+    public int $characterCount = 0;
+
     public array $errorDescriptions = [
         'meeting_text' => 'The transcript must not exceed the character/token limit for the selected model and must not contain unsafe content.',
 

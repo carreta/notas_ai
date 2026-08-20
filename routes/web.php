@@ -10,4 +10,4 @@ Route::get('/', [AnalyzeController::class, 'index'])->name('home');
 Route::get('/history', [HistoryController::class, 'index'])->name('history');
 Route::get('/debug', [DebugController::class, 'index'])->name('debug');
 
-Route::get('/meetings/{meeting}', [MeetingController::class, 'show']);
+Route::get('/meetings/{meeting}', [MeetingController::class, 'show'])->name('meetings.show');

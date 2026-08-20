@@ -19,7 +19,7 @@ class MeetingRetrievalTest extends TestCase
             'meeting_time' => null,
         ]);
 
-        $response = $this->getJson("/meetings/{$meeting->id}");
+        $response = $this->getJson(route('meetings.show', $meeting));
 
         $response
             ->assertOk()
@@ -48,7 +48,7 @@ class MeetingRetrievalTest extends TestCase
     public function test_nonexistent_meeting_returns_404(): void
     {
         $response = $this->getJson(
-            '/meetings/550e8400-e29b-41d4-a716-446655440000'
+            route('meetings.show', '550e8400-e29b-41d4-a716-446655440000')
         );
 
         $response->assertNotFound();

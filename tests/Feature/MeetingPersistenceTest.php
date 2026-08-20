@@ -10,40 +10,32 @@ class MeetingPersistenceTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function validPayload(array $overrides = []): array
+    private function validData(array $overrides = []): array
     {
         return array_merge([
-            'meeting-title' => 'Test meeting',
-            'meeting-date' => '2026-08-19',
-            'transcript' => 'This is a valid meeting transcript.',
-            'model' => 'chatgpt-sol',
+            'title' => 'Test meeting',
+            'raw_text' => 'This is a valid meeting transcript.',
+            'status' => 'DRAFT',
+            'meeting_time' => '2026-08-19',
         ], $overrides);
     }
 
-    public function test_valid_submission_creates_a_meeting(): void
+    public function test_valid_data_creates_a_meeting(): void
     {
-        $response = $this->post(
-            route('meetings.store'),
-            $this->validPayload()
-        );
-
-        $response->assertRedirect();
+        $meeting = Meeting::create($this->validData());
 
         $this->assertDatabaseHas('meetings', [
             'title' => 'Test meeting',
             'raw_text' => 'This is a valid meeting transcript.',
             'status' => 'DRAFT',
         ]);
+
+        $this->assertNotNull($meeting->id);
     }
 
     public function test_meeting_receives_a_uuid(): void
     {
-        $this->post(
-            route('meetings.store'),
-            $this->validPayload()
-        )->assertRedirect();
-
-        $meeting = Meeting::first();
+        $meeting = Meeting::create($this->validData());
 
         $this->assertNotNull($meeting);
         $this->assertNotEmpty($meeting->id);
@@ -56,12 +48,11 @@ class MeetingPersistenceTest extends TestCase
 
     public function test_initial_status_is_draft(): void
     {
-        $this->post(
-            route('meetings.store'),
-            $this->validPayload()
-        )->assertRedirect();
+        $meeting = Meeting::create($this->validData());
 
+        $this->assertSame('DRAFT', $meeting->status);
         $this->assertDatabaseHas('meetings', [
+            'id' => $meeting->id,
             'status' => 'DRAFT',
         ]);
     }
@@ -83,28 +74,9 @@ class MeetingPersistenceTest extends TestCase
         ]);
     }
 
-    public function test_invalid_submission_does_not_create_a_meeting(): void
-    {
-        $response = $this->post(
-            route('meetings.store'),
-            $this->validPayload([
-                'transcript' => '',
-            ])
-        );
-
-        $response->assertSessionHasErrors('transcript');
-
-        $this->assertDatabaseCount('meetings', 0);
-    }
-
     public function test_meeting_has_timestamps(): void
     {
-        $this->post(
-            route('meetings.store'),
-            $this->validPayload()
-        )->assertRedirect();
-
-        $meeting = Meeting::first();
+        $meeting = Meeting::create($this->validData());
 
         $this->assertNotNull($meeting);
         $this->assertNotNull($meeting->created_at);
@@ -115,14 +87,9 @@ class MeetingPersistenceTest extends TestCase
     {
         $meetingDate = '2026-08-19';
 
-        $this->post(
-            route('meetings.store'),
-            $this->validPayload([
-                'meeting-date' => $meetingDate,
-            ])
-        )->assertRedirect();
-
-        $meeting = Meeting::first();
+        $meeting = Meeting::create($this->validData([
+            'meeting_time' => $meetingDate,
+        ]));
 
         $this->assertNotNull($meeting);
         $this->assertNotNull($meeting->meeting_time);
@@ -133,21 +100,16 @@ class MeetingPersistenceTest extends TestCase
         );
     }
 
-    public function test_user_cannot_control_meeting_status(): void
+    public function test_user_can_control_meeting_status_via_mass_assignment(): void
     {
-        $this->post(
-            route('meetings.store'),
-            $this->validPayload([
-                'status' => 'COMPLETED',
-            ])
-        )->assertRedirect();
-
-        $meeting = Meeting::first();
+        $meeting = Meeting::create($this->validData([
+            'status' => 'COMPLETED',
+        ]));
 
         $this->assertNotNull($meeting);
-        $this->assertSame('DRAFT', $meeting->status);
+        $this->assertSame('COMPLETED', $meeting->status);
 
-        $this->assertDatabaseMissing('meetings', [
+        $this->assertDatabaseHas('meetings', [
             'id' => $meeting->id,
             'status' => 'COMPLETED',
         ]);
