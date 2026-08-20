@@ -1,0 +1,18 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+    excludePaths:
+        - bootstrap/cache
+        - storage
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # TODO: Magic method visibility warnings are Laravel framework internals.
+        # Revisit after increasing to level 6+.
+        - '#^Magic method __[a-z]+ must be public#'
+        # Migration from PHPStan 1.x checkMissingIterableValueType: false.
+        # PHPStan 2.x removed that parameter; use error identifier instead.
+        - identifier: missingType.iterableValue

@@ -1,0 +1,79 @@
+name: CI Baseline
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    # PostgreSQL service used as the temporary database for CI tests
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: notas_ia_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d notas_ia_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, dom, fileinfo, pdo_pgsql, pgsql
+          coverage: none
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Verify route list
+        run: php artisan route:list
+
+      - name: Run static analysis
+        run: composer analyse
+
+
+        # PostgreSQL connection settings used only for automated tests in CI
+
+      - name: Run tests
+        run: composer test
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: notas_ia_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+
+      - name: Run Pint linter
+        run: ./vendor/bin/pint --test
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Check platform requirements
+        run: composer check-platform-reqs
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build

@@ -1,0 +1,17 @@
+context: Laravel project notas_ai - SDD initialized with both OpenSpec and Engram persistence
+strict_tdd: false
+testing_capabilities:
+  test_runner: PHPUnit
+  test_layers:
+    unit: available
+    integration: available
+    e2e: not_configured
+  coverage: available
+  commands:
+    test: vendor/bin/phpunit
+    coverage: vendor/bin/phpunit --coverage
+linter: vendor/bin/pint
+formatter: vendor/bin/pint
+artifact_store: both
+delivery_strategy: ask-on-risk
+review_budget_lines: 400
