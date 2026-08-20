@@ -13,6 +13,7 @@ class Analysis extends Model
     protected $fillable = [
         'meeting_id',
         'result',
+        'analysis_metadata',
     ];
 
     protected function casts(): array
@@ -25,5 +26,10 @@ class Analysis extends Model
     public function meeting(): BelongsTo
     {
         return $this->belongsTo(Meeting::class);
+    }
+
+    public function analysisMetadata(): BelongsTo
+    {
+        return $this->belongsTo(AnalysisLog::class, 'analysis_metadata', 'id');
     }
 }

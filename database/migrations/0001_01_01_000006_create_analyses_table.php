@@ -22,13 +22,14 @@ return new class extends Migration
 
             $table->jsonb('result');
 
-            /*
-            $table->foreignUuid('analysis_metadata_id')
-                ->nullable()
-                ->unique()
-                ->constrained('analysis_logs')
+            // Option A 1:1 link to analysis_logs. Nullable because the
+            // FR-005 persist() path creates an Analysis before a log exists.
+            $table->uuid('analysis_metadata')->nullable();
+            $table->foreign('analysis_metadata')
+                ->references('id')
+                ->on('analysis_logs')
                 ->nullOnDelete();
-            */
+            $table->unique('analysis_metadata');
 
             $table->timestamps();
         });

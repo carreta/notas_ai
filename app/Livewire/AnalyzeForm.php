@@ -2,6 +2,8 @@
 
 namespace App\Livewire;
 
+use App\AI\AnalysisOrchestrator;
+use App\AI\AnalysisOutcome;
 use App\Models\Meeting;
 use App\Validation\HasMeetingValidation;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +24,12 @@ class AnalyzeForm extends Component
     public array $models = [];
 
     public string $stage = 'idle';
+
+    /**
+     * Id of the Meeting created in {@see save()}; used by {@see analyze()} to
+     * locate the meeting across the Livewire request boundary.
+     */
+    public ?string $meetingId = null;
 
     public int $maxChars = 50000;
 
@@ -130,12 +138,14 @@ class AnalyzeForm extends Component
         $this->setStage('saving'); // 25%
 
         try {
-            Meeting::create([
+            $meeting = Meeting::create([
                 'title' => $this->meeting_title,
                 'raw_text' => $this->meeting_text,
                 'status' => 'DRAFT',
                 'meeting_time' => $this->meeting_date,
             ]);
+
+            $this->meetingId = $meeting->id;
         } catch (\Throwable $exception) {
             $this->addError(
                 'meeting_text',
@@ -149,10 +159,8 @@ class AnalyzeForm extends Component
             return;
         }
 
-        // Persistence succeeded.
-        // For now, intentionally stop here.
-        // Later this can become an asyncronous process that calls the AI and stores the results.:
-        // $this->analyze();
+        // Persistence succeeded. The Alpine listener waits briefly, then calls
+        // $wire.analyze() which performs the synchronous analysis.
         $this->dispatch('save-passed');
     }
 
@@ -160,15 +168,38 @@ class AnalyzeForm extends Component
     {
         $this->setStage('analyzing'); // 50%
 
-        // TODO:
-        // Perform the analysis here.
-        //
-        // If this becomes a long-running operation,
-        // move it to a Laravel queued Job rather than
-        // blocking the Livewire request.
+        $meeting = Meeting::find($this->meetingId);
 
-        // Currently stops here. Later this can become an asyncronous process that stores the results:
-        // $this->store();
+        if ($meeting === null) {
+            $this->addError('meeting_text', 'The meeting could not be found.');
+            $this->setStage('idle');
+
+            return;
+        }
+
+        try {
+            /** @var AnalysisOutcome $outcome */
+            $outcome = app(AnalysisOrchestrator::class)->analyze($meeting);
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            $this->addError(
+                'meeting_text',
+                'The analysis could not be completed. Please try again later.'
+            );
+            $this->setStage('idle');
+
+            return;
+        }
+
+        if (! $outcome->success) {
+            $this->addError('meeting_text', $outcome->userMessage);
+            $this->setStage('idle');
+
+            return;
+        }
+
+        $this->store();
     }
 
     public function store(): void
