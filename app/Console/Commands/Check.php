@@ -112,8 +112,17 @@ class Check extends Command
             // Clear config cache first to ensure fresh state
             Process::run('php artisan config:clear');
 
-            // Run tests with explicit test environment variables
-            $result = Process::env($this->testEnv)->run('composer test');
+            // Use a file-based SQLite database that persists across processes
+            // The in-memory database doesn't work because each process gets a fresh one
+            $testEnvWithFileDb = array_merge($this->testEnv, [
+                'DB_DATABASE' => base_path('database/testing.sqlite'),
+            ]);
+
+            // Run migrations for the test database
+            Process::env($testEnvWithFileDb)->run('php artisan migrate:fresh --force');
+
+            // Run tests with the file-based database
+            $result = Process::env($testEnvWithFileDb)->run('composer test');
             $output = $result->output();
             $tests = 0;
             $assertions = 0;
@@ -125,6 +134,9 @@ class Check extends Command
                 $assertions = (int) $m[1];
             }
 
+            // Clean up test database file
+            @unlink(base_path('database/testing.sqlite'));
+
             return [
                 'success' => $result->successful(),
                 'output' => $output,
@@ -132,6 +144,9 @@ class Check extends Command
                 'assertions' => $assertions,
             ];
         } catch (\Throwable $e) {
+            // Clean up on error
+            @unlink(base_path('database/testing.sqlite'));
+
             return ['success' => false, 'output' => $e->getMessage()];
         }
     }

@@ -247,6 +247,7 @@ class AnalyzeForm extends Component
         if ($this->analysisId) {
             session()->flash('analysis_id', $this->analysisId);
             redirect()->route('history');
+
             return;
         }
 

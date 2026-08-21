@@ -82,7 +82,6 @@ final class LLMAdapter implements AnalysisProvider
         } else {
             $endpoint = $baseUrl.'/chat/completions';
 
-
             // -----------------------------------------------------
 
             $payload = [
@@ -100,12 +99,11 @@ final class LLMAdapter implements AnalysisProvider
             // This prevents "Maximum execution time of 30 seconds exceeded" fatal errors
             // when local models take longer than PHP's default limit.
 
-  /*        @set_time_limit($timeout + 30);
-            $response = Http::withToken($apiKey)
-                ->timeout($timeout)
-                ->post($baseUrl.'/chat/completions', $payload);
-        } catch (ConnectionException|RequestException $e) {  */
-
+            /*        @set_time_limit($timeout + 30);
+                      $response = Http::withToken($apiKey)
+                          ->timeout($timeout)
+                          ->post($baseUrl.'/chat/completions', $payload);
+                  } catch (ConnectionException|RequestException $e) {  */
 
             @set_time_limit($timeout + 30);
             $httpRequest = $isGemini
@@ -166,7 +164,7 @@ final class LLMAdapter implements AnalysisProvider
         if (! $response->successful()) {
             throw new AiDependencyException('The AI provider returned an unexpected response.');
         }
-     //     $content = $response->json('choices.0.message.content');
+        //     $content = $response->json('choices.0.message.content');
         $content = $isGemini
             ? $response->json('candidates.0.content.parts.0.text')
             : $response->json('choices.0.message.content');

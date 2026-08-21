@@ -4,8 +4,8 @@ namespace App\Livewire;
 
 use App\Models\Analysis;
 use App\Models\Meeting;
-use Livewire\Component;
 use Livewire\Attributes\On;
+use Livewire\Component;
 
 class AnalysisDetailModal extends Component
 {
@@ -70,7 +70,9 @@ class AnalysisDetailModal extends Component
     {
         if ($this->meetingId) {
             $meeting = Meeting::with('analysis')->find($this->meetingId);
-            $this->analysis = $meeting?->analysis;
+            /** @var Analysis|null $analysis */
+            $analysis = $meeting?->analysis;
+            $this->analysis = $analysis;
             if ($this->analysis) {
                 $this->analysis->load('meeting');
             }
