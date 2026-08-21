@@ -30,21 +30,24 @@ final class StructuredAnalysisValidator
         $actionItemsRaw = $this->requireArray($data, 'action_items');
         $openQuestionsRaw = $this->requireArray($data, 'open_questions');
 
+        \Log::info('data', [
+            'summary' => $summary,
+            'decisionsRaw' => $decisionsRaw,
+            'actionItemsRaw' => $actionItemsRaw,
+            'openQuestionsRaw' => $openQuestionsRaw,
+        ]);
         $decisions = [];
         foreach ($decisionsRaw as $item) {
             $decisions[] = $this->validateDecision($item);
         }
-
         $openQuestions = [];
         foreach ($openQuestionsRaw as $item) {
             $openQuestions[] = $this->validateOpenQuestion($item);
         }
-
         $actionItems = [];
         foreach ($actionItemsRaw as $item) {
             $actionItems[] = $this->validateActionItem($item);
         }
-
         return new AnalysisResult($summary, $decisions, $actionItems, $openQuestions);
     }
 
@@ -81,20 +84,20 @@ final class StructuredAnalysisValidator
 
     private function validateDecision(mixed $item): Decision
     {
-        if (! is_array($item)) {
+        if (! is_string($item) || trim($item) === '') {
             throw new AiInvalidResponseException;
         }
 
-        return new Decision($this->requireString($item, 'text', true));
+        return new Decision($item);
     }
 
     private function validateOpenQuestion(mixed $item): OpenQuestion
     {
-        if (! is_array($item)) {
+        if (! is_string($item) || trim($item) === '') {
             throw new AiInvalidResponseException;
         }
 
-        return new OpenQuestion($this->requireString($item, 'text', true));
+        return new OpenQuestion($item);
     }
 
     private function validateActionItem(mixed $item): ActionItem

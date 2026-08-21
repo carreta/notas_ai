@@ -45,4 +45,13 @@ return [
         'encoding' => 'cl100k_base',
         'provider' => 'lmstudio',
     ],
+
+    'gemini-3.6-flash' => [
+        'label' => 'Gemini 3.6 Flash',
+        'model' => 'gemini-3.6-flash',
+        'max_chars' => 200000,
+        'max_tokens' => 8192,
+        'encoding' => 'cl100k_base',
+        'provider' => 'google',
+    ],
 ];

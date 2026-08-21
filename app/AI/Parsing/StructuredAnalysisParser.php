@@ -23,7 +23,6 @@ final class StructuredAnalysisParser
      */
     public function parse(string $content): array
     {
-        echo 'console.log(' . json_encode($content) . ');';
         // Strip UTF-8 BOM if present (some models include it)
         $content = ltrim($content, "\xEF\xBB\xBF");
 
@@ -35,8 +34,6 @@ final class StructuredAnalysisParser
         $content = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $content);
 
         $content = trim($content);
-
-        echo 'console.log(' . json_encode($content) . ');';
 
         if ($content === '') {
             throw new AiInvalidResponseException;
