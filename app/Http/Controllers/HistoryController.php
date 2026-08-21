@@ -2,12 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Analysis;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 class HistoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        // Check session for analysis_id set by AnalyzeForm::complete()
+        $selectedAnalysisId = $request->session()->pull('analysis_id', null);
+
+        $selectedAnalysis = null;
+        if ($selectedAnalysisId) {
+            $selectedAnalysis = Analysis::with('meeting')->find($selectedAnalysisId);
+        }
+
         $meetings = [
             [
                 'id' => 1,
@@ -32,6 +42,10 @@ class HistoryController extends Controller
             ],
         ];
 
-        return view('history', ['meetings' => $meetings]);
+        return view('history', [
+            'meetings' => $meetings,
+            'selectedAnalysis' => $selectedAnalysis,
+            'selectedAnalysisId' => $selectedAnalysisId,
+        ]);
     }
 }

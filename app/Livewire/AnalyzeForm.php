@@ -58,6 +58,12 @@ class AnalyzeForm extends Component
      */
     public ?string $lastErrorCategory = null;
 
+    /**
+     * Id of the Analysis created in {@see analyze()}; used by {@see complete()} to
+     * redirect to the history page with the analysis details.
+     */
+    public ?string $analysisId = null;
+
     public function mount(array $models): void
     {
         $this->models = $models;
@@ -141,8 +147,8 @@ class AnalyzeForm extends Component
 
         // Keep the component in "validating" for the moment.
         // The Blade/Alpine listener waits 1 second before calling $wire.save().
-        $this->dispatch('validation-passed');
         $this->setStage('saving'); // 25%
+        $this->dispatch('validation-passed');
     }
 
     public function save(): void
@@ -171,8 +177,8 @@ class AnalyzeForm extends Component
 
         // Persistence succeeded. The Alpine listener waits briefly, then calls
         // $wire.analyze() which performs the synchronous analysis.
-        $this->dispatch('save-passed');
         $this->setStage('analyzing'); // 50%
+        $this->dispatch('save-passed');
     }
 
     public function analyze(): void
@@ -219,20 +225,33 @@ class AnalyzeForm extends Component
             return;
         }
 
-        $this->dispatch('analyze-passed');
+        // Store the analysis ID for the complete() redirect
+        $this->analysisId = $outcome->analysis?->id;
+
         $this->setStage('storing'); // 75%
+        $this->dispatch('analyze-passed');
     }
 
     public function store(): void
     {
         // TODO:
         // Store the analysis result here.
+        // Might just be UI experience now, since AnalysisOrchestrator already saves the analysis to the database.
 
-        $this->dispatch('store-passed');
         $this->setStage('completed'); // 100%
+        $this->dispatch('store-passed');
     }
 
-    public function complete(): void {}
+    public function complete(): void
+    {
+        if ($this->analysisId) {
+            session()->flash('analysis_id', $this->analysisId);
+            redirect()->route('history');
+            return;
+        }
+
+        redirect()->route('history');
+    }
 
     /**
      * Get a detailed, user-friendly description for the last AI error category.

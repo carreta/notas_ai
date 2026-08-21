@@ -75,4 +75,7 @@
         </tbody>
     </table>
 </div>
+
+@livewire('analysis-detail-modal', ['analysisId' => $selectedAnalysisId])
+
 @endsection
