@@ -48,30 +48,27 @@
             </tr>
         </thead>
         <tbody class="divide-y divide-outline-variant text-on-surface">
-            @foreach($meetings as $meeting)
+            @forelse($meetings as $meeting)
             <tr class="hover:bg-surface-container-lowest hover:shadow-sm transition-all duration-200 group">
-                <td class="px-md py-md text-body-sm font-sans text-on-surface">{{ $meeting['date'] }}</td>
-                <td class="px-md py-md text-body-md font-sans font-semibold text-on-surface group-hover:text-primary transition-colors">{{ $meeting['title'] }}</td>
-                <td class="px-md py-md text-body-sm font-sans text-on-surface-variant">{{ $meeting['processed'] }}</td>
+                <td class="px-md py-md text-body-sm font-sans text-on-surface">{{ $meeting->meeting_time?->format('M d, Y') ?? '—' }}</td>
+                <td class="px-md py-md text-body-md font-sans font-semibold text-on-surface group-hover:text-primary transition-colors">{{ $meeting->title ?? 'Untitled' }}</td>
+                <td class="px-md py-md text-body-sm font-sans text-on-surface-variant">{{ $meeting->created_at?->format('M d, Y') ?? '—' }}</td>
                 <td class="px-md py-md">
-                    @if($meeting['status'] === 'Completed')
-                        <span class="inline-flex items-center px-xs py-0.5 rounded text-label-sm font-mono bg-secondary-container text-on-secondary-container">Completed</span>
-                    @elseif($meeting['status'] === 'In Progress')
-                        <span class="inline-flex items-center px-xs py-0.5 rounded text-label-sm font-mono bg-tertiary-container text-on-tertiary-container">
-                            <span class="material-symbols-outlined text-[14px] mr-1 animate-spin">sync</span>
-                            In Progress
-                        </span>
-                    @elseif($meeting['status'] === 'Failed')
-                        <span class="inline-flex items-center px-xs py-0.5 rounded text-label-sm font-mono bg-error-container text-on-error-container border border-error-container">Failed</span>
-                    @endif
+                    @include('partials.status-badge', ['status' => $meeting->status])
                 </td>
                 <td class="px-md py-md text-right">
-                    <button class="text-on-surface-variant hover:text-primary transition-colors p-xs" aria-label="View details">
+                    <a href="{{ route('meetings.show', $meeting) }}" class="text-on-surface-variant hover:text-primary transition-colors p-xs" aria-label="View details for {{ $meeting->title ?? 'this meeting' }}">
                         <span class="material-symbols-outlined">chevron_right</span>
-                    </button>
+                    </a>
                 </td>
             </tr>
-            @endforeach
+            @empty
+            <tr>
+                <td colspan="5" class="px-md py-xl text-center text-body-md font-sans text-on-surface-variant">
+                    No meetings yet. Submit a transcript to see it here.
+                </td>
+            </tr>
+            @endforelse
         </tbody>
     </table>
 </div>

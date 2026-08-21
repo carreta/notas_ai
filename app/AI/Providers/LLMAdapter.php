@@ -51,27 +51,69 @@ final class LLMAdapter implements AnalysisProvider
         $model = $modelConfig['model'] ?? $providerConfig['model'] ?? Config::get('ai.model', 'gpt-4o-mini');
         $timeout = (int) ($providerConfig['timeout'] ?? Config::get('ai.timeout', 120));
 
+        // Google Gemini uses the native Generative Language API, not the
+        // OpenAI-compatible path shared by OpenAI and LM Studio.
+        $isGemini = $provider === 'google';
+
         if ($apiKey === '') {
             throw new AiConfigurationException('The AI provider API key is not configured.');
         }
+        // ---------------------------
+        if ($isGemini) {
+            $endpoint = rtrim($baseUrl, '/').'/models/'.$model.':generateContent';
+            $payload = [
+                'systemInstruction' => [
+                    'parts' => [
+                        ['text' => $this->systemPrompt()],
+                    ],
+                ],
+                'contents' => [
+                    [
+                        'role' => 'user',
+                        'parts' => [
+                            ['text' => $this->buildUserPrompt($request)],
+                        ],
+                    ],
+                ],
+                'generationConfig' => [
+                    'responseMimeType' => 'application/json',
+                ],
+            ];
+        } else {
+            $endpoint = $baseUrl.'/chat/completions';
 
-        $payload = [
-            'model' => $model,
-            'messages' => [
-                ['role' => 'system', 'content' => $this->systemPrompt()],
-                ['role' => 'user', 'content' => $this->buildUserPrompt($request)],
-            ],
-            'temperature' => 0,
-        ];
+
+            // -----------------------------------------------------
+
+            $payload = [
+                'model' => $model,
+                'messages' => [
+                    ['role' => 'system', 'content' => $this->systemPrompt()],
+                    ['role' => 'user', 'content' => $this->buildUserPrompt($request)],
+                ],
+                'temperature' => 0,
+            ];
+        }
 
         try {
             // Extend PHP max execution time to cover the HTTP timeout + buffer
             // This prevents "Maximum execution time of 30 seconds exceeded" fatal errors
             // when local models take longer than PHP's default limit.
-            @set_time_limit($timeout + 30);
+
+  /*        @set_time_limit($timeout + 30);
             $response = Http::withToken($apiKey)
                 ->timeout($timeout)
                 ->post($baseUrl.'/chat/completions', $payload);
+        } catch (ConnectionException|RequestException $e) {  */
+
+
+            @set_time_limit($timeout + 30);
+            $httpRequest = $isGemini
+                ? Http::withHeader('x-goog-api-key', $apiKey)
+                : Http::withToken($apiKey);
+            $response = $httpRequest
+                ->timeout($timeout)
+                ->post($endpoint, $payload);
         } catch (ConnectionException|RequestException $e) {
             // Laravel wraps transport failures (timeouts, connection refused) into
             // a ConnectionException whose previous exception is the original
@@ -103,6 +145,12 @@ final class LLMAdapter implements AnalysisProvider
 
         $status = $response->status();
 
+        // Gemini-specific: 400 (bad request) or 404 (model not found) are
+        // configuration problems rather than transient dependency failures.
+        if ($isGemini && ($status === 400 || $status === 404)) {
+            throw new AiConfigurationException('The AI provider rejected the request configuration.');
+        }
+
         if ($status === 401 || $status === 403) {
             throw new AiConfigurationException('The AI provider rejected the request credentials.');
         }
@@ -118,8 +166,10 @@ final class LLMAdapter implements AnalysisProvider
         if (! $response->successful()) {
             throw new AiDependencyException('The AI provider returned an unexpected response.');
         }
-
-        $content = $response->json('choices.0.message.content');
+     //     $content = $response->json('choices.0.message.content');
+        $content = $isGemini
+            ? $response->json('candidates.0.content.parts.0.text')
+            : $response->json('choices.0.message.content');
 
         if (! is_string($content) || $content === '') {
             throw new AiInvalidResponseException('The AI provider returned an empty analysis.');
