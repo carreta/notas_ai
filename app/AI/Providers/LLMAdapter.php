@@ -18,6 +18,7 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -51,68 +52,31 @@ final class LLMAdapter implements AnalysisProvider
         $model = $modelConfig['model'] ?? $providerConfig['model'] ?? Config::get('ai.model', 'gpt-4o-mini');
         $timeout = (int) ($providerConfig['timeout'] ?? Config::get('ai.timeout', 120));
 
-        // Google Gemini uses the native Generative Language API, not the
-        // OpenAI-compatible path shared by OpenAI and LM Studio.
-        $isGemini = $provider === 'google';
-
         if ($apiKey === '') {
             throw new AiConfigurationException('The AI provider API key is not configured.');
         }
-        // ---------------------------
-        if ($isGemini) {
-            $endpoint = rtrim($baseUrl, '/').'/models/'.$model.':generateContent';
-            $payload = [
-                'systemInstruction' => [
-                    'parts' => [
-                        ['text' => $this->systemPrompt()],
-                    ],
-                ],
-                'contents' => [
-                    [
-                        'role' => 'user',
-                        'parts' => [
-                            ['text' => $this->buildUserPrompt($request)],
-                        ],
-                    ],
-                ],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                ],
-            ];
-        } else {
-            $endpoint = $baseUrl.'/chat/completions';
 
-            // -----------------------------------------------------
-
-            $payload = [
-                'model' => $model,
-                'messages' => [
-                    ['role' => 'system', 'content' => $this->systemPrompt()],
-                    ['role' => 'user', 'content' => $this->buildUserPrompt($request)],
-                ],
-                'temperature' => 0,
-            ];
-        }
+        $payload = [
+            'model' => $model,
+            'messages' => [
+                ['role' => 'system', 'content' => $this->systemPrompt()],
+                ['role' => 'user', 'content' => $this->buildUserPrompt($request)],
+            ],
+            'temperature' => 0,
+        ];
 
         try {
             // Extend PHP max execution time to cover the HTTP timeout + buffer
             // This prevents "Maximum execution time of 30 seconds exceeded" fatal errors
             // when local models take longer than PHP's default limit.
 
-            /*        @set_time_limit($timeout + 30);
-                      $response = Http::withToken($apiKey)
-                          ->timeout($timeout)
-                          ->post($baseUrl.'/chat/completions', $payload);
-                  } catch (ConnectionException|RequestException $e) {  */
-
             @set_time_limit($timeout + 30);
-            $httpRequest = $isGemini
-                ? Http::withHeader('x-goog-api-key', $apiKey)
-                : Http::withToken($apiKey);
-            $response = $httpRequest
+            $response = Http::withToken($apiKey)
                 ->timeout($timeout)
-                ->post($endpoint, $payload);
+                ->post($baseUrl.'/chat/completions', $payload);
         } catch (ConnectionException|RequestException $e) {
+            $this->logTransportFailure($provider, $model, $baseUrl, $e);
+
             // Laravel wraps transport failures (timeouts, connection refused) into
             // a ConnectionException whose previous exception is the original
             // Guzzle exception. Inspect it to classify timeouts vs dependencies.
@@ -128,6 +92,8 @@ final class LLMAdapter implements AnalysisProvider
             // Other transport/HTTP failures: the AI service is unreachable.
             throw new AiDependencyException('The AI provider could not be reached.', $e);
         } catch (TransferException $e) {
+            $this->logTransportFailure($provider, $model, $baseUrl, $e);
+
             if ($this->isTimeout($e)) {
                 throw new AiTimeoutException('The AI provider request timed out.', $e);
             }
@@ -138,15 +104,22 @@ final class LLMAdapter implements AnalysisProvider
 
             throw new AiDependencyException('The AI provider could not be reached.', $e);
         } catch (Throwable $e) {
+            $this->logTransportFailure($provider, $model, $baseUrl, $e);
+
             throw new AiDependencyException('The AI provider could not be reached.', $e);
         }
 
         $status = $response->status();
 
-        // Gemini-specific: 400 (bad request) or 404 (model not found) are
-        // configuration problems rather than transient dependency failures.
-        if ($isGemini && ($status === 400 || $status === 404)) {
-            throw new AiConfigurationException('The AI provider rejected the request configuration.');
+        if (! $response->successful()) {
+            $error = $response->json('error');
+            $this->logHttpFailure(
+                $provider,
+                $model,
+                $baseUrl,
+                $status,
+                is_array($error) ? $error : null,
+            );
         }
 
         if ($status === 401 || $status === 403) {
@@ -164,10 +137,7 @@ final class LLMAdapter implements AnalysisProvider
         if (! $response->successful()) {
             throw new AiDependencyException('The AI provider returned an unexpected response.');
         }
-        //     $content = $response->json('choices.0.message.content');
-        $content = $isGemini
-            ? $response->json('candidates.0.content.parts.0.text')
-            : $response->json('choices.0.message.content');
+        $content = $response->json('choices.0.message.content');
 
         if (! is_string($content) || $content === '') {
             throw new AiInvalidResponseException('The AI provider returned an empty analysis.');
@@ -181,6 +151,44 @@ final class LLMAdapter implements AnalysisProvider
         return $e instanceof ConnectTimeoutException
             || $e instanceof NetworkTimeoutException
             || $e instanceof ResponseTimeoutException;
+    }
+
+    /**
+     * Log diagnostics required to investigate provider failures without
+     * recording credentials, request headers, prompts, or transcripts.
+     *
+     * @param  array<string, mixed>|null  $providerError
+     */
+    private function logHttpFailure(string $provider, string $model, string $baseUrl, int $status, ?array $providerError): void
+    {
+        Log::warning('AI provider returned an unsuccessful HTTP response.', [
+            'provider' => $provider,
+            'model' => $model,
+            'base_url' => rtrim($baseUrl, '/'),
+            'status' => $status,
+            'provider_error_code' => $providerError['code'] ?? null,
+            'provider_error_status' => $providerError['status'] ?? null,
+            'provider_error_message' => isset($providerError['message'])
+                ? str($providerError['message'])->limit(500)->toString()
+                : null,
+        ]);
+    }
+
+    private function logTransportFailure(string $provider, string $model, string $baseUrl, Throwable $exception): void
+    {
+        $previous = $exception->getPrevious();
+
+        Log::warning('AI provider transport request failed.', [
+            'provider' => $provider,
+            'model' => $model,
+            'base_url' => rtrim($baseUrl, '/'),
+            'exception' => $exception::class,
+            'exception_message' => str($exception->getMessage())->limit(500)->toString(),
+            'previous_exception' => $previous ? $previous::class : null,
+            'previous_exception_message' => $previous
+                ? str($previous->getMessage())->limit(500)->toString()
+                : null,
+        ]);
     }
 
     private function systemPrompt(): string

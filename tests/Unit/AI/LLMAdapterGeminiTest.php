@@ -11,21 +11,21 @@ use App\AI\Providers\LLMAdapter;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
-/**
- * Tests that LLMAdapter routes Google Gemini to the native generateContent
- * endpoint (x-goog-api-key, candidates.0.content.parts.0.text) while leaving
- * the OpenAI/LM Studio path untouched.
- */
+/** Tests Gemini through Google's OpenAI-compatible chat completions API. */
 final class LLMAdapterGeminiTest extends TestCase
 {
     private function fakeGoogleConfig(): void
     {
         config([
             'ai.providers.google' => [
-                'base_url' => 'https://generativelanguage.googleapis.com/v1beta',
+                'base_url' => 'https://generativelanguage.googleapis.com/v1beta/openai',
                 'api_key' => 'TESTKEY',
-                'model' => 'gemini-3.6-flash',
+                'model' => 'gemini-3.7-flash',
                 'timeout' => 120,
+            ],
+            'models.gemini-3.7-flash' => [
+                'model' => 'gemini-3.7-flash',
+                'provider' => 'google',
             ],
         ]);
     }
@@ -35,13 +35,13 @@ final class LLMAdapterGeminiTest extends TestCase
         return new AnalysisRequest(
             content: 'Test transcript',
             referenceDate: '2025-09-15',
-            model: 'gemini-3.6-flash',
+            model: 'gemini-3.7-flash',
             provider: 'google',
-            modelKey: 'google',
+            modelKey: 'gemini-3.7-flash',
         );
     }
 
-    public function test_uses_native_gemini_endpoint_and_header(): void
+    public function test_uses_openai_compatible_endpoint_and_bearer_token(): void
     {
         $this->fakeGoogleConfig();
         $captured = null;
@@ -49,8 +49,8 @@ final class LLMAdapterGeminiTest extends TestCase
             $captured = $request;
 
             return Http::response([
-                'candidates' => [
-                    ['content' => ['parts' => [['text' => '{"summary":"ok"}']]]],
+                'choices' => [
+                    ['message' => ['content' => '{"summary":"ok"}']],
                 ],
             ], 200);
         });
@@ -58,28 +58,30 @@ final class LLMAdapterGeminiTest extends TestCase
         $result = (new LLMAdapter)->analyze($this->geminiRequest());
 
         $this->assertSame('{"summary":"ok"}', $result);
-        $this->assertStringContainsString('/models/gemini-3.6-flash:generateContent', $captured->url());
-        $this->assertTrue($captured->hasHeader('x-goog-api-key'));
-        $this->assertContains('TESTKEY', $captured->header('x-goog-api-key'));
-        $this->assertFalse($captured->hasHeader('Authorization'));
-        $this->assertStringNotContainsString('/openai/', $captured->url());
+        $this->assertSame(
+            'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+            $captured->url(),
+        );
+        $this->assertTrue($captured->hasHeader('Authorization'));
+        $this->assertContains('Bearer TESTKEY', $captured->header('Authorization'));
+        $this->assertFalse($captured->hasHeader('x-goog-api-key'));
 
         $body = $captured->data();
-        $this->assertArrayHasKey('systemInstruction', $body);
-        $this->assertArrayHasKey('contents', $body);
-        $this->assertSame('application/json', $body['generationConfig']['responseMimeType']);
+        $this->assertSame('gemini-3.7-flash', $body['model']);
+        $this->assertSame('system', $body['messages'][0]['role']);
+        $this->assertSame('user', $body['messages'][1]['role']);
     }
 
-    public function test_404_maps_to_configuration_error(): void
+    public function test_404_maps_to_dependency_error(): void
     {
         Http::fake([
-            '*/models/*:generateContent' => Http::response(['error' => ['message' => 'not found']], 404),
+            '*/chat/completions' => Http::response(['error' => ['message' => 'not found']], 404),
         ]);
 
         $this->fakeGoogleConfig();
 
-        $this->expectException(AiConfigurationException::class);
-        $this->expectExceptionMessage('request configuration');
+        $this->expectException(AiDependencyException::class);
+        $this->expectExceptionMessage('unexpected response');
 
         (new LLMAdapter)->analyze($this->geminiRequest());
     }
@@ -87,7 +89,7 @@ final class LLMAdapterGeminiTest extends TestCase
     public function test_401_maps_to_configuration_error(): void
     {
         Http::fake([
-            '*/models/*:generateContent' => Http::response(['error' => ['message' => 'Unauthorized']], 401),
+            '*/chat/completions' => Http::response(['error' => ['message' => 'Unauthorized']], 401),
         ]);
 
         $this->fakeGoogleConfig();
@@ -101,7 +103,7 @@ final class LLMAdapterGeminiTest extends TestCase
     public function test_429_maps_to_rate_limit_error(): void
     {
         Http::fake([
-            '*/models/*:generateContent' => Http::response(['error' => ['message' => 'rate']], 429),
+            '*/chat/completions' => Http::response(['error' => ['message' => 'rate']], 429),
         ]);
 
         $this->fakeGoogleConfig();
@@ -115,7 +117,7 @@ final class LLMAdapterGeminiTest extends TestCase
     public function test_500_maps_to_dependency_error(): void
     {
         Http::fake([
-            '*/models/*:generateContent' => Http::response(['error' => ['message' => 'boom']], 500),
+            '*/chat/completions' => Http::response(['error' => ['message' => 'boom']], 500),
         ]);
 
         $this->fakeGoogleConfig();
@@ -126,10 +128,10 @@ final class LLMAdapterGeminiTest extends TestCase
         (new LLMAdapter)->analyze($this->geminiRequest());
     }
 
-    public function test_empty_candidates_maps_to_invalid_response(): void
+    public function test_empty_choices_maps_to_invalid_response(): void
     {
         Http::fake([
-            '*/models/*:generateContent' => Http::response(['candidates' => []], 200),
+            '*/chat/completions' => Http::response(['choices' => []], 200),
         ]);
 
         $this->fakeGoogleConfig();
