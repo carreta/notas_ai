@@ -54,7 +54,7 @@ final class LLMAdapter implements AnalysisProvider
         if ($apiKey === '') {
             throw new AiConfigurationException('The AI provider API key is not configured.');
         }
-        
+
         $payload = [
             'model' => $model,
             'messages' => [
@@ -63,7 +63,7 @@ final class LLMAdapter implements AnalysisProvider
             ],
             'temperature' => 0,
         ];
-        
+
         try {
             // Extend PHP max execution time to cover the HTTP timeout + buffer
             // This prevents "Maximum execution time of 30 seconds exceeded" fatal errors

@@ -29,7 +29,7 @@ return [
     ],
 
     'qwen-3.5-9b' => [
-        'label' => 'Qwen 3.5 9B',
+        'label' => 'Local - Qwen 3.5 9B',
         'model' => 'qwen/qwen3.5-9b',
         'max_chars' => 32000,
         'max_tokens' => 8000,
@@ -37,9 +37,9 @@ return [
         'provider' => 'lmstudio',
     ],
 
-    'deepseek-r1-qwen3-8b' => [
-        'label' => 'DeepSeek R1 Qwen3 8B',
-        'model' => 'deepseek/deepseek-r1-0528-qwen3-8',
+    'Gemma 4 12B' => [
+        'label' => 'Local - Gemma 4 12B',
+        'model' => 'google/gemma-4-12b',
         'max_chars' => 32000,
         'max_tokens' => 8000,
         'encoding' => 'cl100k_base',

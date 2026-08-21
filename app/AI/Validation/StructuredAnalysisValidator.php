@@ -30,12 +30,6 @@ final class StructuredAnalysisValidator
         $actionItemsRaw = $this->requireArray($data, 'action_items');
         $openQuestionsRaw = $this->requireArray($data, 'open_questions');
 
-        \Log::info('data', [
-            'summary' => $summary,
-            'decisionsRaw' => $decisionsRaw,
-            'actionItemsRaw' => $actionItemsRaw,
-            'openQuestionsRaw' => $openQuestionsRaw,
-        ]);
         $decisions = [];
         foreach ($decisionsRaw as $item) {
             $decisions[] = $this->validateDecision($item);
@@ -48,6 +42,7 @@ final class StructuredAnalysisValidator
         foreach ($actionItemsRaw as $item) {
             $actionItems[] = $this->validateActionItem($item);
         }
+
         return new AnalysisResult($summary, $decisions, $actionItems, $openQuestions);
     }
 
@@ -84,20 +79,46 @@ final class StructuredAnalysisValidator
 
     private function validateDecision(mixed $item): Decision
     {
-        if (! is_string($item) || trim($item) === '') {
+        $text = $this->extractTextFromDecision($item);
+        if ($text === null || trim($text) === '') {
             throw new AiInvalidResponseException;
         }
 
-        return new Decision($item);
+        return new Decision($text);
     }
 
     private function validateOpenQuestion(mixed $item): OpenQuestion
     {
-        if (! is_string($item) || trim($item) === '') {
+        $text = $this->extractTextFromOpenQuestion($item);
+        if ($text === null || trim($text) === '') {
             throw new AiInvalidResponseException;
         }
 
-        return new OpenQuestion($item);
+        return new OpenQuestion($text);
+    }
+
+    private function extractTextFromDecision(mixed $item): ?string
+    {
+        if (is_string($item)) {
+            return $item;
+        }
+        if (is_array($item) && array_key_exists('text', $item) && is_string($item['text'])) {
+            return $item['text'];
+        }
+
+        return null;
+    }
+
+    private function extractTextFromOpenQuestion(mixed $item): ?string
+    {
+        if (is_string($item)) {
+            return $item;
+        }
+        if (is_array($item) && array_key_exists('text', $item) && is_string($item['text'])) {
+            return $item['text'];
+        }
+
+        return null;
     }
 
     private function validateActionItem(mixed $item): ActionItem

@@ -36,6 +36,7 @@ final class StructuredAnalysisProcessor
     {
         $parsed = $this->parser->parse($content);
         $validated = $this->validator->validate($parsed);
+
         return $this->normalizer->normalize($validated);
     }
 }
