@@ -23,7 +23,7 @@
 
         <!-- Backdrop -->
         <div
-            class="modal-backdrop absolute inset-0 transition-opacity"
+            class="absolute inset-0 bg-inverse-surface/80 backdrop-blur-sm cursor-default transition-opacity"
             wire:click="closeModal"
         ></div>
 

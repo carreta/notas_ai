@@ -5,6 +5,6 @@
     @if (isset($slot) && $slot->isNotEmpty())
         {{ $slot }}
     @else
-        <span class="font-sans text-body-sm text-on-surface font-medium break-words">{{ $value }}</span>
+        <span class="font-sans text-body-sm text-on-surface font-medium wrap-break-words">{{ $value }}</span>
     @endif
 </div>
