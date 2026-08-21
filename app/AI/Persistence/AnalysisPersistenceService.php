@@ -116,6 +116,51 @@ final class AnalysisPersistenceService
     }
 
     /**
+     * Update an existing Analysis record with a new result and metadata.
+     * Used for re-analysis where the meeting already has an analysis.
+     */
+    public function update(
+        Analysis $analysis,
+        AnalysisResult $result,
+        AnalysisMetadata $metadata,
+    ): Analysis {
+        return DB::transaction(function () use ($analysis, $result, $metadata): Analysis {
+            $log = AnalysisLog::create([
+                'meeting_id' => $analysis->meeting_id,
+                'status' => $metadata->failureCategory !== null ? 'FAILED' : 'COMPLETED',
+                'provider' => $metadata->provider,
+                'model' => $metadata->model,
+                'prompt_version' => $metadata->schemaVersion,
+                'error_category' => $metadata->failureCategory,
+                'error_message' => null,
+                'started_at' => $metadata->startedAt,
+                'completed_at' => $metadata->completedAt,
+            ]);
+
+            $analysis->update([
+                'result' => $this->serializer->toArray($result),
+                'analysis_metadata' => $log->id,
+            ]);
+
+            if ($metadata->durationMs !== null) {
+                AiMetric::updateOrCreate(
+                    ['analysis_id' => $analysis->id],
+                    [
+                        'prompt_tokens' => 0,
+                        'completion_tokens' => 0,
+                        'total_tokens' => 0,
+                        'duration_ms' => $metadata->durationMs,
+                    ]
+                );
+            }
+
+            $analysis->meeting->update(['status' => 'COMPLETED']);
+
+            return $analysis;
+        });
+    }
+
+    /**
      * Record a safe FAILED analysis log for a meeting, without creating any
      * trusted Analysis row. Used by the orchestrator on the failure path so
      * that diagnosis metadata (provider/model/version/timing/category) is

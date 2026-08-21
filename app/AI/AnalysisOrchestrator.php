@@ -9,6 +9,7 @@ use App\AI\Failure\FailureCategory;
 use App\AI\Metadata\AnalysisMetadata;
 use App\AI\Persistence\AnalysisPersistenceService;
 use App\AI\Providers\AnalysisProvider;
+use App\Models\Analysis;
 use App\Models\Meeting;
 use Carbon\Carbon;
 use DateTimeImmutable;
@@ -71,6 +72,48 @@ final class AnalysisOrchestrator
             // Any failure while persisting the trusted result is, by definition,
             // a persistence/database failure -> PERSISTENCE_ERROR, regardless of
             // the underlying exception type (e.g. Eloquent model hook throwing).
+            return $this->fail($meeting, $startedAt, $startedMicro, new AnalysisFailure(
+                FailureCategory::PERSISTENCE_ERROR,
+                'The analysis could not be saved.',
+            ), $provider, $modelKey);
+        }
+
+        return new AnalysisOutcome(true, $analysis, null, '');
+    }
+
+    public function reAnalyze(Analysis $analysis, ?string $provider = null, ?string $modelKey = null): AnalysisOutcome
+    {
+        $meeting = $analysis->meeting;
+        $meeting->update(['status' => 'ANALYZING']);
+
+        $startedAt = new DateTimeImmutable;
+        $startedMicro = microtime(true);
+
+        try {
+            $raw = $this->provider->analyze($this->requestFor($meeting, $provider, $modelKey));
+        } catch (Throwable $e) {
+            return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
+        }
+
+        try {
+            $result = $this->processor->process($raw);
+        } catch (Throwable $e) {
+            return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
+        }
+
+        $metadata = new AnalysisMetadata(
+            provider: $provider ?? $meeting->provider ?? (string) config('ai.provider', 'openai'),
+            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-4o-mini'),
+            schemaVersion: (string) config('ai.schema_version', 'meeting-analysis-v1'),
+            startedAt: $startedAt,
+            completedAt: new DateTimeImmutable,
+            durationMs: $this->durationMs($startedMicro),
+            failureCategory: null,
+        );
+
+        try {
+            $analysis = $this->persistence->update($analysis, $result, $metadata);
+        } catch (Throwable $e) {
             return $this->fail($meeting, $startedAt, $startedMicro, new AnalysisFailure(
                 FailureCategory::PERSISTENCE_ERROR,
                 'The analysis could not be saved.',
