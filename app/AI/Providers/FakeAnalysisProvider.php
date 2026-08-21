@@ -62,7 +62,7 @@ final class FakeAnalysisProvider implements AnalysisProvider
                     'priority_source' => 'EXPLICIT',
                     'due_date_text' => 'next Friday',
                     'due_date' => '2026-08-28',
-                    'due_date_source' => 'RESOLVED',
+                    'due_date_source' => 'INFERRED',
                 ],
             ],
             'open_questions' => [

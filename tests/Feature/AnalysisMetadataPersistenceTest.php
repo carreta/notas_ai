@@ -30,14 +30,14 @@ class AnalysisMetadataPersistenceTest extends TestCase
 
         // analysis_logs.prompt_version is a FK to prompt_templates.version,
         // so the referenced prompt template must exist before persistence.
-        DB::table('prompt_templates')->insert([
+        DB::table('prompt_templates')->upsert([
             'id' => (string) Str::uuid(),
             'version' => 'meeting-analysis-v1',
             'system_prompt' => 'system',
             'json_schema' => json_encode(['version' => 'meeting-analysis-v1']),
             'is_active' => true,
             'created_at' => now(),
-        ]);
+        ], ['version'], ['system_prompt', 'json_schema', 'is_active', 'created_at']);
     }
 
     protected function tearDown(): void
@@ -59,7 +59,7 @@ class AnalysisMetadataPersistenceTest extends TestCase
                     prioritySource: 'EXPLICIT',
                     dueDateText: 'next Friday',
                     dueDate: '2026-08-28',
-                    dueDateSource: 'RESOLVED',
+                    dueDateSource: 'INFERRED',
                 ),
             ],
             openQuestions: [new OpenQuestion('Open question?')],

@@ -130,14 +130,14 @@ class StructuredAnalysisNormalizerTest extends TestCase
         $result = $this->makeResult($this->actionItem([
             'dueDateText' => 'next Monday',
             'dueDate' => '2026-08-17',
-            'dueDateSource' => 'RESOLVED',
+            'dueDateSource' => 'INFERRED',
         ]));
 
         $normalized = $this->normalizer->normalize($result);
 
         $this->assertSame('next Monday', $normalized->actionItems[0]->dueDateText);
         $this->assertSame('2026-08-17', $normalized->actionItems[0]->dueDate);
-        $this->assertSame('RESOLVED', $normalized->actionItems[0]->dueDateSource);
+        $this->assertSame('INFERRED', $normalized->actionItems[0]->dueDateSource);
     }
 
     public function test_inferred_date_provenance_preserved(): void
@@ -159,14 +159,14 @@ class StructuredAnalysisNormalizerTest extends TestCase
         $result = $this->makeResult($this->actionItem([
             'dueDateText' => 'next week',
             'dueDate' => null,
-            'dueDateSource' => 'UNRESOLVED',
+            'dueDateSource' => 'UNKNOWN',
         ]));
 
         $normalized = $this->normalizer->normalize($result);
 
         $this->assertSame('next week', $normalized->actionItems[0]->dueDateText);
         $this->assertNull($normalized->actionItems[0]->dueDate);
-        $this->assertSame('UNRESOLVED', $normalized->actionItems[0]->dueDateSource);
+        $this->assertSame('UNKNOWN', $normalized->actionItems[0]->dueDateSource);
     }
 
     public function test_no_date_information_remains_all_null(): void

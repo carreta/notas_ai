@@ -43,7 +43,7 @@ class StructuredAnalysisProcessorTest extends TestCase
                     'priority_source' => 'EXPLICIT',
                     'due_date_text' => 'next Monday',
                     'due_date' => '2026-08-17',
-                    'due_date_source' => 'RESOLVED',
+                    'due_date_source' => 'INFERRED',
                 ],
             ],
             'open_questions' => [
@@ -142,13 +142,13 @@ class StructuredAnalysisProcessorTest extends TestCase
     public function test_resolved_date_preserved(): void
     {
         $data = $this->validBase();
-        $data['action_items'][0]['due_date_source'] = 'RESOLVED';
+        $data['action_items'][0]['due_date_source'] = 'INFERRED';
 
         $result = $this->process($data);
 
         $this->assertSame('next Monday', $result->actionItems[0]->dueDateText);
         $this->assertSame('2026-08-17', $result->actionItems[0]->dueDate);
-        $this->assertSame('RESOLVED', $result->actionItems[0]->dueDateSource);
+        $this->assertSame('INFERRED', $result->actionItems[0]->dueDateSource);
     }
 
     public function test_unresolved_date_preserved(): void
@@ -156,13 +156,13 @@ class StructuredAnalysisProcessorTest extends TestCase
         $data = $this->validBase();
         $data['action_items'][0]['due_date_text'] = 'next week';
         $data['action_items'][0]['due_date'] = null;
-        $data['action_items'][0]['due_date_source'] = 'UNRESOLVED';
+        $data['action_items'][0]['due_date_source'] = 'UNKNOWN';
 
         $result = $this->process($data);
 
         $this->assertSame('next week', $result->actionItems[0]->dueDateText);
         $this->assertNull($result->actionItems[0]->dueDate);
-        $this->assertSame('UNRESOLVED', $result->actionItems[0]->dueDateSource);
+        $this->assertSame('UNKNOWN', $result->actionItems[0]->dueDateSource);
     }
 
     public function test_nested_dtos_created(): void
@@ -314,7 +314,7 @@ class StructuredAnalysisProcessorTest extends TestCase
         $data = $this->validBase();
         $data['action_items'][0]['due_date_text'] = 'next week';
         $data['action_items'][0]['due_date'] = '2026-08-17';
-        $data['action_items'][0]['due_date_source'] = 'UNRESOLVED';
+        $data['action_items'][0]['due_date_source'] = 'UNKNOWN';
 
         $this->expectException(AiInvalidResponseException::class);
 

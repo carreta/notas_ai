@@ -47,6 +47,17 @@ class AnalyzeForm extends Component
         'model' => 'Please select a valid model from the dropdown.',
     ];
 
+    /**
+     * Track whether the last error was an AI analysis error (vs validation error)
+     * so we can show a retry button instead of the generic validation description.
+     */
+    public bool $lastErrorWasAi = false;
+
+    /**
+     * Store the specific AI error category for detailed error descriptions.
+     */
+    public ?string $lastErrorCategory = null;
+
     public function mount(array $models): void
     {
         $this->models = $models;
@@ -131,12 +142,11 @@ class AnalyzeForm extends Component
         // Keep the component in "validating" for the moment.
         // The Blade/Alpine listener waits 1 second before calling $wire.save().
         $this->dispatch('validation-passed');
+        $this->setStage('saving'); // 25%
     }
 
     public function save(): void
     {
-        $this->setStage('saving'); // 25%
-
         try {
             $meeting = Meeting::create([
                 'title' => $this->meeting_title,
@@ -162,6 +172,7 @@ class AnalyzeForm extends Component
         // Persistence succeeded. The Alpine listener waits briefly, then calls
         // $wire.analyze() which performs the synchronous analysis.
         $this->dispatch('save-passed');
+        $this->setStage('analyzing'); // 50%
     }
 
     public function analyze(): void
@@ -177,9 +188,14 @@ class AnalyzeForm extends Component
             return;
         }
 
+        // Resolve model/provider from the component's current selection
+        $selectedModelConfig = $this->models[$this->model] ?? [];
+        $provider = $selectedModelConfig['provider'] ?? config('ai.provider', 'openai');
+        $modelKey = $this->model;
+
         try {
             /** @var AnalysisOutcome $outcome */
-            $outcome = app(AnalysisOrchestrator::class)->analyze($meeting);
+            $outcome = app(AnalysisOrchestrator::class)->analyze($meeting, $provider, $modelKey);
         } catch (\Throwable $exception) {
             report($exception);
 
@@ -187,6 +203,8 @@ class AnalyzeForm extends Component
                 'meeting_text',
                 'The analysis could not be completed. Please try again later.'
             );
+            $this->lastErrorWasAi = true;
+            $this->lastErrorCategory = 'INTERNAL_ERROR';
             $this->setStage('idle');
 
             return;
@@ -194,27 +212,58 @@ class AnalyzeForm extends Component
 
         if (! $outcome->success) {
             $this->addError('meeting_text', $outcome->userMessage);
+            $this->lastErrorWasAi = true;
+            $this->lastErrorCategory = $outcome->category;
             $this->setStage('idle');
 
             return;
         }
 
-        $this->store();
+        $this->dispatch('analyze-passed');
+        $this->setStage('storing'); // 75%
     }
 
     public function store(): void
     {
-        $this->setStage('storing'); // 75%
-
         // TODO:
         // Store the analysis result here.
 
-        $this->complete();
+        $this->dispatch('store-passed');
+        $this->setStage('completed'); // 100%
     }
 
-    public function complete(): void
+    public function complete(): void {}
+
+    /**
+     * Get a detailed, user-friendly description for the last AI error category.
+     */
+    public function getAiErrorDescription(): string
     {
-        $this->setStage('completed'); // 100%
+        return match ($this->lastErrorCategory) {
+            'AI_CONFIGURATION_ERROR' => 'The AI provider is not properly configured. Check that the API key is set in your .env file (OPENAI_API_KEY or LMSTUDIO_API_KEY) and the provider URL is correct.',
+            'AI_DEPENDENCY_ERROR' => 'The AI service could not be reached. This usually means the local server (LM Studio/Ollama) is not running, or there\'s a network issue. Verify the server is running at the configured URL.',
+            'AI_TIMEOUT' => 'The analysis took too long and timed out. Local models can be slow on first run. Try again, or increase the timeout in config/ai.php.',
+            'AI_RATE_LIMIT' => 'The AI provider rate limit was exceeded. Wait a moment and retry. For local models, this may indicate the server is busy.',
+            'AI_INVALID_RESPONSE' => 'The AI returned a response that could not be parsed. This can happen with some local models that include extra text. The system automatically retries parsing.',
+            'PERSISTENCE_ERROR' => 'The analysis completed but could not be saved to the database. This is a system error — your data is safe, but the result was not stored.',
+            default => 'An unexpected error occurred during analysis. Check the logs for details.',
+        };
+    }
+
+    /**
+     * Fallback for test contexts where $wire is not available.
+     */
+    public function getAiErrorDescriptionFallback(): string
+    {
+        return match ($this->lastErrorCategory) {
+            'AI_CONFIGURATION_ERROR' => 'The AI provider is not properly configured. Check that the API key is set in your .env file (OPENAI_API_KEY or LMSTUDIO_API_KEY) and the provider URL is correct.',
+            'AI_DEPENDENCY_ERROR' => 'The AI service could not be reached. This usually means the local server (LM Studio/Ollama) is not running, or there\'s a network issue. Verify the server is running at the configured URL.',
+            'AI_TIMEOUT' => 'The analysis took too long and timed out. Local models can be slow on first run. Try again, or increase the timeout in config/ai.php.',
+            'AI_RATE_LIMIT' => 'The AI provider rate limit was exceeded. Wait a moment and retry. For local models, this may indicate the server is busy.',
+            'AI_INVALID_RESPONSE' => 'The AI returned a response that could not be parsed. This can happen with some local models that include extra text. The system automatically retries parsing.',
+            'PERSISTENCE_ERROR' => 'The analysis completed but could not be saved to the database. This is a system error — your data is safe, but the result was not stored.',
+            default => 'An unexpected error occurred during analysis. Check the logs for details.',
+        };
     }
 
     public function render()
@@ -225,6 +274,9 @@ class AnalyzeForm extends Component
             'maxChars' => $this->maxChars,
             'maxTokens' => $this->maxTokens,
             'errorDescriptions' => $this->errorDescriptions,
+            'aiErrorDescription' => $this->lastErrorWasAi && $this->lastErrorCategory
+                ? $this->getAiErrorDescription()
+                : null,
         ]);
     }
 }

@@ -72,6 +72,22 @@
     x-on:save-passed.window="
         setTimeout(() => {
             $wire.analyze();
+        }, 10)
+    "
+
+    {{-- Data successfully analyzed has completed. Give the user a brief
+         processing delay before starting the store stage. --}}
+    x-on:analyze-passed.window="
+        setTimeout(() => {
+            $wire.store();
+        }, 1000)
+    "
+
+    {{-- Data successfully stored has completed. Give the user a brief
+         processing delay before completing. --}}
+    x-on:store-passed.window="
+        setTimeout(() => {
+            $wire.complete();
         }, 1000)
     "
 >
@@ -224,26 +240,49 @@
         <div class="flex flex-col gap-sm">
             @foreach($errors->getMessages() as $field => $messages)
                 <div
-                    class="error-field bg-error-container border border-error/20 rounded-lg p-md"
+                    class="flex flex-row error-field bg-error-container border border-error/20 rounded-lg p-md"
                     wire:key="error-{{ $field }}"
                 >
-                    <p class="font-mono text-label-md text-on-error-container flex items-center gap-sm">
-                        <span
-                            class="material-symbols-outlined text-error"
-                            style="font-variation-settings: 'FILL' 1;"
-                        >
-                            error
-                        </span>
+                    <div class="flex flex-1 flex-col">
+                        <p class="font-mono text-label-md text-on-error-container flex items-center gap-sm">
+                            <span
+                                class="material-symbols-outlined text-error"
+                                style="font-variation-settings: 'FILL' 1;"
+                            >
+                                error
+                            </span>
 
-                        {{-- Actual validation error --}}
-                        {{ $messages[0] }}
-                    </p>
-
-                    {{-- Dynamic error description --}}
-                    @if(isset($errorDescriptions[$field]))
-                        <p class="font-sans text-body-sm text-on-error-container/70 mt-xs">
-                            {{ $errorDescriptions[$field] }}
+                            {{-- Actual validation error --}}
+                            {{ $messages[0] }}
                         </p>
+
+                        {{-- Dynamic error description --}}
+                        @if(isset($errorDescriptions[$field]))
+                            <p class="font-sans text-body-sm text-on-error-container/70 mt-xs">
+                                @if($field === 'meeting_text' && $lastErrorWasAi && $aiErrorDescription)
+                                    {{-- For AI errors, show detailed actionable description instead of generic user message --}}
+                                    {{ $aiErrorDescription }}
+                                @else
+                                    {{ $messages[0] }}
+                                @endif
+                            </p>
+                        @endif
+                    </div>
+
+                    {{-- Retry button for AI analysis failures --}}
+                    @if($field === 'meeting_text' && $lastErrorWasAi && $stage === 'idle')
+                        <div class="flex justify-end">
+                            <button
+                                wire:click="analyze"
+                                wire:loading.attr="disabled"
+                                class="bg-error text-on-error font-mono text-label-sm px-md py-xs rounded-lg hover:bg-error/90 transition-colors flex items-center gap-xs"
+                            >
+                                <span class="material-symbols-outlined text-[16px]">
+                                    refresh
+                                </span>
+                                <span>Retry Analysis</span>
+                            </button>
+                        </div>
                     @endif
                 </div>
             @endforeach

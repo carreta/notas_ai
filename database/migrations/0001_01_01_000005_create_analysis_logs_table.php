@@ -52,10 +52,7 @@ return new class extends Migration
     }
 };
 
-
-
 /**
-
 Doing it manually starts working.
 
 INSERT INTO prompt_templates (

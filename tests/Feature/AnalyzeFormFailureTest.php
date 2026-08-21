@@ -20,14 +20,14 @@ class AnalyzeFormFailureTest extends TestCase
     {
         parent::setUp();
 
-        DB::table('prompt_templates')->insert([
+        DB::table('prompt_templates')->upsert([
             'id' => (string) Str::uuid(),
             'version' => 'meeting-analysis-v1',
             'system_prompt' => 'system',
             'json_schema' => json_encode(['version' => 'meeting-analysis-v1']),
             'is_active' => true,
             'created_at' => now(),
-        ]);
+        ], ['version'], ['system_prompt', 'json_schema', 'is_active', 'created_at']);
 
         config([
             'ai.provider' => 'openai',

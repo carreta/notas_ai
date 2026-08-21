@@ -36,7 +36,7 @@ class StructuredAnalysisValidatorTest extends TestCase
                     'priority_source' => 'EXPLICIT',
                     'due_date_text' => 'next Monday',
                     'due_date' => '2026-08-17',
-                    'due_date_source' => 'RESOLVED',
+                    'due_date_source' => 'INFERRED',
                 ],
             ],
             'open_questions' => [
@@ -165,13 +165,13 @@ class StructuredAnalysisValidatorTest extends TestCase
         $data = $this->validBase();
         $data['action_items'][0]['due_date_text'] = 'next Monday';
         $data['action_items'][0]['due_date'] = null;
-        $data['action_items'][0]['due_date_source'] = 'UNRESOLVED';
+        $data['action_items'][0]['due_date_source'] = 'UNKNOWN';
 
         $result = $this->assertValid($data);
 
         $this->assertSame('next Monday', $result->actionItems[0]->dueDateText);
         $this->assertNull($result->actionItems[0]->dueDate);
-        $this->assertSame('UNRESOLVED', $result->actionItems[0]->dueDateSource);
+        $this->assertSame('UNKNOWN', $result->actionItems[0]->dueDateSource);
     }
 
     // ---------- INVALID TOP-LEVEL ----------
@@ -359,7 +359,7 @@ class StructuredAnalysisValidatorTest extends TestCase
         $data = $this->validBase();
         $data['action_items'][0]['due_date_text'] = 'next Monday';
         $data['action_items'][0]['due_date'] = '2026-08-17';
-        $data['action_items'][0]['due_date_source'] = 'UNRESOLVED';
+        $data['action_items'][0]['due_date_source'] = 'UNKNOWN';
 
         $this->assertInvalid($data);
     }

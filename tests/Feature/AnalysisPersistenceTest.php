@@ -45,7 +45,7 @@ class AnalysisPersistenceTest extends TestCase
                     prioritySource: 'EXPLICIT',
                     dueDateText: 'next Friday',
                     dueDate: '2026-08-28',
-                    dueDateSource: 'RESOLVED',
+                    dueDateSource: 'INFERRED',
                 ),
                 new ActionItem(
                     task: 'Investigate fallback',
@@ -144,7 +144,7 @@ class AnalysisPersistenceTest extends TestCase
         $this->assertSame('EXPLICIT', $items[0]['priority_source']);
         $this->assertSame('next Friday', $items[0]['due_date_text']);
         $this->assertSame('2026-08-28', $items[0]['due_date']);
-        $this->assertSame('RESOLVED', $items[0]['due_date_source']);
+        $this->assertSame('INFERRED', $items[0]['due_date_source']);
     }
 
     public function test_open_questions_are_persisted(): void
@@ -192,7 +192,7 @@ class AnalysisPersistenceTest extends TestCase
 
         $this->assertSame('next Friday', $items[0]['due_date_text']);
         $this->assertSame('2026-08-28', $items[0]['due_date']);
-        $this->assertSame('RESOLVED', $items[0]['due_date_source']);
+        $this->assertSame('INFERRED', $items[0]['due_date_source']);
     }
 
     public function test_empty_collections_persist_correctly(): void

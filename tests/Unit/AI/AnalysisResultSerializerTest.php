@@ -57,7 +57,7 @@ class AnalysisResultSerializerTest extends TestCase
             prioritySource: 'EXPLICIT',
             dueDateText: 'next Friday',
             dueDate: '2026-08-28',
-            dueDateSource: 'RESOLVED',
+            dueDateSource: 'INFERRED',
         );
         $result = new AnalysisResult('S', [], [$item], []);
 
@@ -70,7 +70,7 @@ class AnalysisResultSerializerTest extends TestCase
             'priority_source' => 'EXPLICIT',
             'due_date_text' => 'next Friday',
             'due_date' => '2026-08-28',
-            'due_date_source' => 'RESOLVED',
+            'due_date_source' => 'INFERRED',
         ], $out['action_items'][0]);
     }
 
@@ -117,7 +117,7 @@ class AnalysisResultSerializerTest extends TestCase
             prioritySource: 'INFERRED',
             dueDateText: 'soon',
             dueDate: null,
-            dueDateSource: 'UNRESOLVED',
+            dueDateSource: 'UNKNOWN',
         );
         $result = new AnalysisResult('S', [new Decision('d')], [$item], [new OpenQuestion('q')]);
 

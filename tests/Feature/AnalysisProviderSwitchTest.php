@@ -7,7 +7,7 @@ use App\AI\Exceptions\AiRateLimitException;
 use App\AI\Exceptions\AiTimeoutException;
 use App\AI\Providers\AnalysisProvider;
 use App\AI\Providers\FakeAnalysisProvider;
-use App\AI\Providers\OpenAIAnalysisProvider;
+use App\AI\Providers\LLMAdapter;
 use App\Livewire\AnalyzeForm;
 use App\Models\AnalysisLog;
 use App\Models\Meeting;
@@ -26,14 +26,14 @@ class AnalysisProviderSwitchTest extends TestCase
     {
         parent::setUp();
 
-        DB::table('prompt_templates')->insert([
+        DB::table('prompt_templates')->upsert([
             'id' => (string) Str::uuid(),
             'version' => 'meeting-analysis-v1',
             'system_prompt' => 'system',
             'json_schema' => json_encode(['version' => 'meeting-analysis-v1']),
             'is_active' => true,
             'created_at' => now(),
-        ]);
+        ], ['version'], ['system_prompt', 'json_schema', 'is_active', 'created_at']);
 
         config([
             'ai.provider' => 'openai',
@@ -43,11 +43,11 @@ class AnalysisProviderSwitchTest extends TestCase
         ]);
     }
 
-    public function test_default_driver_resolves_openai_provider(): void
+    public function test_default_driver_resolves_llm_adapter(): void
     {
-        config(['ai.driver' => 'openai']);
+        config(['ai.driver' => 'llm']);
 
-        $this->assertInstanceOf(OpenAIAnalysisProvider::class, app(AnalysisProvider::class));
+        $this->assertInstanceOf(LLMAdapter::class, app(AnalysisProvider::class));
     }
 
     public function test_fake_driver_resolves_fake_provider(): void
