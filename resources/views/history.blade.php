@@ -17,7 +17,7 @@
 </header>
 
 <div class="w-full max-w-3xl bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm">
-    <table class="w-full text-left border-collapse">
+    <table class="w-full text-left border-collapse" id="meetingsTable">
         <thead class="bg-surface-container-low border-b border-outline-variant">
             <tr>
                 <th class="px-md py-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-semibold">
@@ -49,7 +49,10 @@
         </thead>
         <tbody class="divide-y divide-outline-variant text-on-surface">
             @forelse($meetings as $meeting)
-            <tr class="hover:bg-surface-container-lowest hover:shadow-sm transition-all duration-200 group">
+            <tr
+                class="hover:bg-surface-container-lowest hover:shadow-sm transition-all duration-200 group cursor-pointer"
+                data-meeting-id="{{ $meeting->id }}"
+            >
                 <td class="px-md py-md text-body-sm font-sans text-on-surface">{{ $meeting->meeting_time?->format('M d, Y') ?? '—' }}</td>
                 <td class="px-md py-md text-body-md font-sans font-semibold text-on-surface group-hover:text-primary transition-colors">{{ $meeting->title ?? 'Untitled' }}</td>
                 <td class="px-md py-md text-body-sm font-sans text-on-surface-variant">{{ $meeting->created_at?->format('M d, Y') ?? '—' }}</td>
@@ -57,9 +60,9 @@
                     @include('partials.status-badge', ['status' => $meeting->status])
                 </td>
                 <td class="px-md py-md text-right">
-                    <a href="{{ route('meetings.show', $meeting) }}" class="text-on-surface-variant hover:text-primary transition-colors p-xs" aria-label="View details for {{ $meeting->title ?? 'this meeting' }}">
+                    <span class="text-on-surface-variant hover:text-primary transition-colors p-xs" aria-label="View details for {{ $meeting->title ?? 'this meeting' }}">
                         <span class="material-symbols-outlined">chevron_right</span>
-                    </a>
+                    </span>
                 </td>
             </tr>
             @empty
@@ -74,5 +77,22 @@
 </div>
 
 @livewire('analysis-detail-modal', ['analysisId' => $selectedAnalysisId])
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const table = document.getElementById('meetingsTable');
+        if (table) {
+            table.addEventListener('click', (e) => {
+                const row = e.target.closest('tr[data-meeting-id]');
+                if (row) {
+                    const meetingId = row.dataset.meetingId;
+                    Livewire.dispatch('openMeetingModal', meetingId);
+                }
+            });
+        }
+    });
+</script>
+@endpush
 
 @endsection

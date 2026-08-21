@@ -29,7 +29,7 @@
 
         <!-- Modal Content Container -->
         <div
-            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_12px_24px_rgba(0,0,0,0.08)] w-full max-w-4xl max-h-[90vh] flex flex-col relative z-10 mx-md"
+            class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-[0_12px_24px_rgba(0,0,0,0.08)] w-full max-w-4xl max-h-[85vh] flex flex-col relative z-10 mx-md"
             id="modalContent"
         >
 

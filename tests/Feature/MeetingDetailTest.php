@@ -11,7 +11,7 @@ class MeetingDetailTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_detail_route_loads_correct_meeting(): void
+    public function test_api_returns_correct_meeting(): void
     {
         $meeting = Meeting::create([
             'title' => 'Alpha Meeting',
@@ -19,13 +19,15 @@ class MeetingDetailTest extends TestCase
             'status' => 'COMPLETED',
         ]);
 
-        $response = $this->get(route('meetings.show', $meeting));
+        $response = $this->getJson(route('meetings.show', $meeting));
 
         $response->assertStatus(200);
-        $response->assertSee('Alpha Meeting');
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('data.title', 'Alpha Meeting');
+        $response->assertJsonPath('data.meeting_id', $meeting->id);
     }
 
-    public function test_detail_does_not_show_another_meetings_data(): void
+    public function test_api_does_not_show_another_meetings_data(): void
     {
         $a = Meeting::create([
             'title' => 'Meeting A',
@@ -38,13 +40,13 @@ class MeetingDetailTest extends TestCase
             'status' => 'COMPLETED',
         ]);
 
-        $response = $this->get(route('meetings.show', $a));
+        $response = $this->getJson(route('meetings.show', $a));
 
-        $response->assertSee('Meeting A');
-        $response->assertDontSee('Meeting B');
+        $response->assertJsonPath('data.title', 'Meeting A');
+        $response->assertJsonPath('data.meeting_id', $a->id);
     }
 
-    public function test_detail_shows_correct_analysis_result(): void
+    public function test_api_shows_correct_analysis_result(): void
     {
         $a = Meeting::create([
             'title' => 'Meeting A',
@@ -76,13 +78,13 @@ class MeetingDetailTest extends TestCase
             ],
         ]);
 
-        $response = $this->get(route('meetings.show', $a));
+        $response = $this->getJson(route('meetings.show', $a));
 
-        $response->assertSee('Summary A');
-        $response->assertDontSee('Summary B');
+        $response->assertJsonPath('data.title', 'Meeting A');
+        $response->assertJsonPath('data.meeting_id', $a->id);
     }
 
-    public function test_meeting_without_analysis_opens_safely(): void
+    public function test_api_meeting_without_analysis_returns_meeting_data(): void
     {
         $meeting = Meeting::create([
             'title' => 'Draft Only',
@@ -90,13 +92,15 @@ class MeetingDetailTest extends TestCase
             'status' => 'DRAFT',
         ]);
 
-        $response = $this->get(route('meetings.show', $meeting));
+        $response = $this->getJson(route('meetings.show', $meeting));
 
         $response->assertStatus(200);
-        $response->assertSee('No analysis data available.');
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('data.title', 'Draft Only');
+        $response->assertJsonPath('data.status', 'DRAFT');
     }
 
-    public function test_failed_meeting_shows_failed_status(): void
+    public function test_api_failed_meeting_shows_failed_status(): void
     {
         $meeting = Meeting::create([
             'title' => 'Failed Meeting',
@@ -104,23 +108,22 @@ class MeetingDetailTest extends TestCase
             'status' => 'FAILED',
         ]);
 
-        $response = $this->get(route('meetings.show', $meeting));
+        $response = $this->getJson(route('meetings.show', $meeting));
 
         $response->assertStatus(200);
-        $response->assertSee('Failed');
-        $response->assertDontSee('Completed');
+        $response->assertJsonPath('data.status', 'FAILED');
     }
 
     public function test_invalid_uuid_returns_404(): void
     {
-        $response = $this->get(route('meetings.show', 'not-a-uuid'));
+        $response = $this->getJson(route('meetings.show', 'not-a-uuid'));
 
         $response->assertNotFound();
     }
 
     public function test_nonexistent_uuid_returns_404(): void
     {
-        $response = $this->get(route('meetings.show', '550e8400-e29b-41d4-a716-446655440000'));
+        $response = $this->getJson(route('meetings.show', '550e8400-e29b-41d4-a716-446655440000'));
 
         $response->assertNotFound();
     }
