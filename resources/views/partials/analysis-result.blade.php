@@ -243,7 +243,7 @@
 
         <div class="flex flex-col md:flex-row gap-md items-end">
             <!-- AI Model Selector -->
-            <div class="flex-grow w-full">
+            <div class="grow w-full">
                 <label
                     for="re-analyze-model-select"
                     class="block text-label-sm font-label-sm text-on-surface-variant mb-xs"
@@ -271,7 +271,7 @@
                 type="button"
                 x-on:click="handleReAnalyze()"
                 x-ref="reAnalyzeBtn"
-                class="bg-primary text-on-primary px-lg py-sm rounded font-label-md flex items-center justify-center gap-xs hover:bg-primary-container transition-colors h-[42px] whitespace-nowrap"
+                class="bg-primary text-on-primary px-lg py-sm rounded font-label-md flex items-center justify-center gap-xs hover:bg-primary-container transition-colors h-10.5 whitespace-nowrap"
                 :class="{ 'opacity-50 cursor-not-allowed': reAnalyzeStage !== 'idle' }"
                 :disabled="reAnalyzeStage !== 'idle'"
             >

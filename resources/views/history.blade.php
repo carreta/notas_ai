@@ -8,7 +8,6 @@
     <h1 class="font-sans text-headline-lg text-on-surface mb-sm">
         Meeting History
     </h1>
-
     <p class="font-sans text-body-lg text-on-surface-variant">
         Review past analysis, extracted action items, and original transcripts.
     </p>
@@ -19,125 +18,136 @@
 {{-- FILTERS --}}
 {{-- ========================================================= --}}
 
-<form
-    method="GET"
-    action="{{ route('history') }}"
-    class="w-full max-w-3xl mb-lg flex flex-wrap items-end gap-md"
->
-    {{-- Search by title --}}
-    <div class="flex flex-col gap-xs">
-        <label
-            for="search"
-            class="text-label-sm font-mono text-on-surface-variant uppercase tracking-wider"
-        >
-            Search title
-        </label>
+<div class="w-full max-w-3xl bg-surface-container-low/30 border border-outline-variant rounded-xl p-md mb-lg">
 
-        <input
-            id="search"
-            name="search"
-            type="text"
-            value="{{ $filters['search'] }}"
-            placeholder="Search meetings..."
-            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest min-w-[200px]"
-        />
-    </div>
-
-
-    {{-- Status filter --}}
-    <div class="flex flex-col gap-xs">
-        <label
-            for="status"
-            class="text-label-sm font-mono text-on-surface-variant uppercase tracking-wider"
-        >
-            Status
-        </label>
-
-        <select
-            id="status"
-            name="status"
-            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest"
-        >
-            <option value="">All statuses</option>
-
-            @foreach($statusOptions as $code => $label)
-                <option
-                    value="{{ $code }}"
-                    @selected($filters['status'] === $code)
-                >
-                    {{ $label }}
-                </option>
-            @endforeach
-        </select>
-    </div>
-
-
-    {{-- Start date --}}
-    <div class="flex flex-col gap-xs">
-        <label
-            for="date_from"
-            class="text-label-sm font-mono text-on-surface-variant uppercase tracking-wider"
-        >
-            From
-        </label>
-
-        <input
-            id="date_from"
-            name="date_from"
-            type="date"
-            value="{{ $filters['date_from'] }}"
-            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest"
-        />
-    </div>
-
-
-    {{-- End date --}}
-    <div class="flex flex-col gap-xs">
-        <label
-            for="date_to"
-            class="text-label-sm font-mono text-on-surface-variant uppercase tracking-wider"
-        >
-            To
-        </label>
-
-        <input
-            id="date_to"
-            name="date_to"
-            type="date"
-            value="{{ $filters['date_to'] }}"
-            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest"
-        />
-    </div>
-
-
-    {{-- Apply filters --}}
-    <button
-        type="submit"
-        class="border border-primary rounded px-md py-sm text-label-md font-mono text-primary hover:bg-surface-container-low flex items-center gap-xs transition-colors"
+    <form
+        method="GET"
+        action="{{ route('history') }}"
+        class="flex flex-row flex-wrap items-end gap-md"
     >
-        <span class="material-symbols-outlined text-[18px]">
-            filter_list
-        </span>
 
-        Filter
-    </button>
+        {{-- Search by title --}}
+        <div class="min-w-50">
+            <label
+                for="search"
+                class="block text-label-sm font-mono text-on-surface-variant mb-xs"
+            >
+                Search title
+            </label>
+
+            <input
+                id="search"
+                name="search"
+                type="text"
+                value="{{ $filters['search'] }}"
+                placeholder="Enter meeting title..."
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded px-md py-sm text-body-sm font-sans text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+            />
+        </div>
 
 
-    {{-- Clear filters --}}
-    @if(
-        $filters['search'] !== ''
-        || $filters['status'] !== ''
-        || $filters['date_from'] !== ''
-        || $filters['date_to'] !== ''
-    )
-        <a
-            href="{{ route('history') }}"
-            class="px-md py-sm text-label-md font-mono text-on-surface-variant hover:text-primary transition-colors"
-        >
-            Clear
-        </a>
-    @endif
-</form>
+        {{-- Status filter --}}
+        <div class="w-40">
+            <label
+                for="status"
+                class="block text-label-sm font-mono text-on-surface-variant mb-xs"
+            >
+                Status
+            </label>
+
+            <select
+                id="status"
+                name="status"
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded px-md py-sm text-body-sm font-sans text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+            >
+                <option value="">All Statuses</option>
+
+                @foreach($statusOptions as $code => $label)
+                    <option
+                        value="{{ $code }}"
+                        @selected($filters['status'] === $code)
+                    >
+                        {{ $label }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+
+
+        {{-- Start date --}}
+        <div class="w-40">
+            <label
+                for="date_from"
+                class="block text-label-sm font-mono text-on-surface-variant mb-xs"
+            >
+                From
+            </label>
+
+            <input
+                id="date_from"
+                name="date_from"
+                type="date"
+                value="{{ $filters['date_from'] }}"
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded px-md py-sm text-body-sm font-sans text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+            />
+        </div>
+
+
+        {{-- End date --}}
+        <div class="w-40">
+            <label
+                for="date_to"
+                class="block text-label-sm font-mono text-on-surface-variant mb-xs"
+            >
+                To
+            </label>
+
+            <input
+                id="date_to"
+                name="date_to"
+                type="date"
+                value="{{ $filters['date_to'] }}"
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded px-md py-sm text-body-sm font-sans text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+            />
+        </div>
+
+
+        {{-- Filter actions --}}
+        <div class="flex gap-sm">
+
+            {{-- Apply filters --}}
+            <button
+                type="submit"
+                class="bg-primary text-on-primary px-lg py-sm rounded text-label-md font-mono hover:bg-primary-container transition-colors h-10.5 flex items-center gap-xs"
+            >
+                <span class="material-symbols-outlined text-[18px]">
+                    filter_alt
+                </span>
+
+                Apply Filter
+            </button>
+
+
+            {{-- Clear filters --}}
+            @if(
+                $filters['search'] !== ''
+                || $filters['status'] !== ''
+                || $filters['date_from'] !== ''
+                || $filters['date_to'] !== ''
+            )
+                <a
+                    href="{{ route('history') }}"
+                    class="text-on-surface-variant hover:text-primary px-md py-sm rounded text-label-md font-mono transition-colors h-10.5 flex items-center"
+                >
+                    Clear
+                </a>
+            @endif
+
+        </div>
+
+    </form>
+
+</div>
 
 
 {{-- ========================================================= --}}
