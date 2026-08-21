@@ -19,13 +19,19 @@ class AnalysisDetailModal extends Component
 
     public string $activeTab = 'analysis';
 
-    // Re-analyze properties
-    public string $reAnalyzeStage = 'idle'; // idle, analyzing, completed, error
+    // Re-analyze properties. Valid states: idle, analyzing, completed, error.
+    public string $reAnalyzeStage = 'idle';
+
     public string $reAnalyzeModel = 'chatgpt-sol';
+
     public array $models = [];
+
     public int $reAnalyzeProgress = 0;
+
     public string $reAnalyzeLabel = '';
+
     public ?string $reAnalyzeError = null;
+
     public ?string $reAnalyzeErrorCategory = null;
 
     protected $listeners = [
@@ -77,7 +83,7 @@ class AnalysisDetailModal extends Component
 
     public function reAnalyze(): void
     {
-        if (!$this->analysis || !$this->analysis->meeting) {
+        if (! $this->analysis || ! $this->analysis->meeting) {
             return;
         }
 
@@ -135,7 +141,7 @@ class AnalysisDetailModal extends Component
         // Clear the result field so the UI shows "No analysis data available"
         // but keep the analysis row and logs intact
         if ($this->analysis) {
-            $this->analysis->result = [];
+            $this->analysis->setAttribute('result', []);
             $this->analysis->save();
             $this->analysis->refresh();
         }

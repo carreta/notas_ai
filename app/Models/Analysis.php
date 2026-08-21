@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Analysis extends Model
 {
@@ -31,5 +32,10 @@ class Analysis extends Model
     public function analysisMetadata(): BelongsTo
     {
         return $this->belongsTo(AnalysisLog::class, 'analysis_metadata', 'id');
+    }
+
+    public function metric(): HasOne
+    {
+        return $this->hasOne(AiMetric::class);
     }
 }

@@ -49,4 +49,9 @@ class AnalysisLog extends Model
     {
         return $this->hasOne(Analysis::class, 'analysis_metadata', 'id');
     }
+
+    public function promptTemplate(): BelongsTo
+    {
+        return $this->belongsTo(PromptTemplate::class, 'prompt_version', 'version');
+    }
 }

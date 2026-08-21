@@ -13,6 +13,7 @@ use App\Models\Analysis;
 use App\Models\Meeting;
 use Carbon\Carbon;
 use DateTimeImmutable;
+use LogicException;
 use Throwable;
 
 /**
@@ -84,6 +85,11 @@ final class AnalysisOrchestrator
     public function reAnalyze(Analysis $analysis, ?string $provider = null, ?string $modelKey = null): AnalysisOutcome
     {
         $meeting = $analysis->meeting;
+
+        if (! $meeting instanceof Meeting) {
+            throw new LogicException('Analysis cannot be re-analyzed without its meeting.');
+        }
+
         $meeting->update(['status' => 'ANALYZING']);
 
         $startedAt = new DateTimeImmutable;

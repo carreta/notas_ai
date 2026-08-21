@@ -122,7 +122,11 @@ class Check extends Command
             Process::env($testEnvWithFileDb)->run('php artisan migrate:fresh --force');
 
             // Run tests with the file-based database
-            $result = Process::env($testEnvWithFileDb)->run('composer test');
+            // The full suite can exceed Laravel Process's
+            // default 60-second timeout on a local machine.
+            $result = Process::timeout(120)
+                ->env($testEnvWithFileDb)
+                ->run('composer test');
             $output = $result->output();
             $tests = 0;
             $assertions = 0;
