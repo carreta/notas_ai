@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Meeting extends Model
 {
@@ -21,5 +22,10 @@ class Meeting extends Model
         return [
             'meeting_time' => 'datetime',
         ];
+    }
+
+    public function analysis(): HasOne
+    {
+        return $this->hasOne(Analysis::class);
     }
 }

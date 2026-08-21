@@ -10,9 +10,10 @@ The easiest way to get this project running locally is the `composer setup` scri
 
 ### Prerequisites
 
-- **PHP 8.4+** with required extensions (`mbstring`, `dom`, `fileinfo`, `pdo_sqlite`, `sqlite3`, etc.)
+- **PHP 8.4+** with required extensions (`mbstring`, `dom`, `fileinfo`, `pdo_pgsql`, etc.)
 - **Composer** (latest)
 - **Node.js v20+** and **npm**
+- **PostgreSQL** (local or Docker) — databases `notas_ia` (dev) and `notas_ia_test` (tests)
 
 ### Quick start
 
@@ -27,7 +28,7 @@ composer setup
 1. `composer install` — installs PHP dependencies
 2. Copies `.env.example` to `.env` (if not already present)
 3. `php artisan key:generate` — sets the application encryption key
-4. `php artisan migrate --force` — runs database migrations (SQLite)
+4. `php artisan migrate --force` — runs database migrations (PostgreSQL)
 5. `npm install --ignore-scripts` — installs frontend dependencies
 6. `npm run build` — compiles frontend assets with Vite
 
@@ -39,7 +40,11 @@ After setup, start the development server:
 php artisan serve
 ```
 
-Visit [http://localhost:8000](http://localhost:8000) — you should see the Laravel welcome page.
+Visit [http://localhost:8000](http://localhost:8000) — you should see the home page. Additionally, if you are in a development environment, the Vite API must be started simultaneously:
+
+```bash
+npm run dev
+```
 
 ### Running tests
 
@@ -49,7 +54,7 @@ Verify your setup by running the test suite:
 composer test
 ```
 
-This runs the full PHPUnit suite (Unit + Feature), including the migration smoke test that verifies all default migrations succeed on an in-memory SQLite database.
+This runs the full PHPUnit suite (Unit + Feature) against the PostgreSQL test database (`notas_ia_test`). The test environment is configured in `phpunit.xml` with `DB_CONNECTION=pgsql` and `DB_DATABASE=notas_ia_test`.
 
 ### Running quality checks
 

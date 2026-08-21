@@ -31,7 +31,6 @@
         <env name="DB_DATABASE" value="notas_ia_test"/>
         <env name="DB_USERNAME" value="postgres"/>
         <env name="DB_URL" value=""/>
-        
  
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

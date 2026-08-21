@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('meetings', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('title')->nullable();
+            $table->string('title');
             $table->text('raw_text');
             $table->enum('status', [
                 'DRAFT',

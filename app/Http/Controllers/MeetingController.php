@@ -2,32 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreMeetingRequest;
 use App\Models\Meeting;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controller;
 
+// TODO: This is a temporary file for the purpose of comparing to view json data for meeting tables. It is not intended to be used in production and should be deleted after history page is implemented.
 class MeetingController extends Controller
 {
-    public function store(StoreMeetingRequest $request): JsonResponse
-    {
-        $meeting = Meeting::create([
-            'title' => $request->validated('title'),
-            'raw_text' => $request->validated('raw_text'),
-            'status' => 'DRAFT',
-            'meeting_time' => $request->validated('meeting_time'),
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'meeting_id' => $meeting->id,
-                'status' => $meeting->status,
-                'created_at' => $meeting->created_at,
-            ],
-            'error' => null,
-        ], 201);
-    }
-
     public function show(Meeting $meeting): JsonResponse
     {
         return response()->json([
