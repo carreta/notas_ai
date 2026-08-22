@@ -8,146 +8,134 @@
     <h1 class="font-sans text-headline-lg text-on-surface mb-sm">
         Meeting History
     </h1>
+
     <p class="font-sans text-body-lg text-on-surface-variant">
         Review past analysis, extracted action items, and original transcripts.
     </p>
 </header>
 
-
 {{-- ========================================================= --}}
 {{-- FILTERS --}}
 {{-- ========================================================= --}}
 
-<div class="w-full max-w-3xl bg-surface-container-low/30 border border-outline-variant rounded-xl p-md mb-lg">
+<form
+    id="historyFilters"
+    method="GET"
+    action="{{ route('history') }}"
+    class="w-full max-w-3xl mb-lg flex flex-wrap items-end gap-md"
+>
+    {{-- Search --}}
+    <div class="flex flex-col gap-xs">
+        <label
+            for="search"
+            class="text-label-sm font-mono text-on-surface-variant uppercase tracking-wider"
+        >
+            Search title
+        </label>
 
-    <form
-        method="GET"
-        action="{{ route('history') }}"
-        class="flex flex-row flex-wrap items-end gap-md"
-    >
+        <input
+            id="search"
+            name="search"
+            type="text"
+            value="{{ $filters['search'] }}"
+            placeholder="Search meetings..."
+            autocomplete="off"
+            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest min-w-[200px]"
+        />
+    </div>
 
-        {{-- Search by title --}}
-        <div class="min-w-50">
-            <label
-                for="search"
-                class="block text-label-sm font-mono text-on-surface-variant mb-xs"
-            >
-                Search title
-            </label>
+    {{-- Status --}}
+    <div class="flex flex-col gap-xs">
+        <label
+            for="status"
+            class="text-label-sm font-mono text-on-surface-variant uppercase tracking-wider"
+        >
+            Status
+        </label>
 
-            <input
-                id="search"
-                name="search"
-                type="text"
-                value="{{ $filters['search'] }}"
-                placeholder="Enter meeting title..."
-                class="w-full bg-surface-container-lowest border border-outline-variant rounded px-md py-sm text-body-sm font-sans text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-            />
-        </div>
+        <select
+            id="status"
+            name="status"
+            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest"
+        >
+            <option value="">
+                All statuses
+            </option>
 
-
-        {{-- Status filter --}}
-        <div class="w-40">
-            <label
-                for="status"
-                class="block text-label-sm font-mono text-on-surface-variant mb-xs"
-            >
-                Status
-            </label>
-
-            <select
-                id="status"
-                name="status"
-                class="w-full bg-surface-container-lowest border border-outline-variant rounded px-md py-sm text-body-sm font-sans text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-            >
-                <option value="">All Statuses</option>
-
-                @foreach($statusOptions as $code => $label)
-                    <option
-                        value="{{ $code }}"
-                        @selected($filters['status'] === $code)
-                    >
-                        {{ $label }}
-                    </option>
-                @endforeach
-            </select>
-        </div>
-
-
-        {{-- Start date --}}
-        <div class="w-40">
-            <label
-                for="date_from"
-                class="block text-label-sm font-mono text-on-surface-variant mb-xs"
-            >
-                From
-            </label>
-
-            <input
-                id="date_from"
-                name="date_from"
-                type="date"
-                value="{{ $filters['date_from'] }}"
-                class="w-full bg-surface-container-lowest border border-outline-variant rounded px-md py-sm text-body-sm font-sans text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-            />
-        </div>
-
-
-        {{-- End date --}}
-        <div class="w-40">
-            <label
-                for="date_to"
-                class="block text-label-sm font-mono text-on-surface-variant mb-xs"
-            >
-                To
-            </label>
-
-            <input
-                id="date_to"
-                name="date_to"
-                type="date"
-                value="{{ $filters['date_to'] }}"
-                class="w-full bg-surface-container-lowest border border-outline-variant rounded px-md py-sm text-body-sm font-sans text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-            />
-        </div>
-
-
-        {{-- Filter actions --}}
-        <div class="flex gap-sm">
-
-            {{-- Apply filters --}}
-            <button
-                type="submit"
-                class="bg-primary text-on-primary px-lg py-sm rounded text-label-md font-mono hover:bg-primary-container transition-colors h-10.5 flex items-center gap-xs"
-            >
-                <span class="material-symbols-outlined text-[18px]">
-                    filter_alt
-                </span>
-
-                Apply Filter
-            </button>
-
-
-            {{-- Clear filters --}}
-            @if(
-                $filters['search'] !== ''
-                || $filters['status'] !== ''
-                || $filters['date_from'] !== ''
-                || $filters['date_to'] !== ''
-            )
-                <a
-                    href="{{ route('history') }}"
-                    class="text-on-surface-variant hover:text-primary px-md py-sm rounded text-label-md font-mono transition-colors h-10.5 flex items-center"
+            @foreach($statusOptions as $code => $label)
+                <option
+                    value="{{ $code }}"
+                    @selected($filters['status'] === $code)
                 >
-                    Clear
-                </a>
-            @endif
+                    {{ $label }}
+                </option>
+            @endforeach
+        </select>
+    </div>
 
-        </div>
+    {{-- Date From --}}
+    <div class="flex flex-col gap-xs">
+        <label
+            for="date_from"
+            class="text-label-sm font-mono text-on-surface-variant uppercase tracking-wider"
+        >
+            From
+        </label>
 
-    </form>
+        <input
+            id="date_from"
+            name="date_from"
+            type="date"
+            value="{{ $filters['date_from'] }}"
+            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest"
+        />
+    </div>
 
-</div>
+    {{-- Date To --}}
+    <div class="flex flex-col gap-xs">
+        <label
+            for="date_to"
+            class="text-label-sm font-mono text-on-surface-variant uppercase tracking-wider"
+        >
+            To
+        </label>
+
+        <input
+            id="date_to"
+            name="date_to"
+            type="date"
+            value="{{ $filters['date_to'] }}"
+            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest"
+        />
+    </div>
+
+    {{-- Manual Filter --}}
+    <button
+        type="submit"
+        class="border border-primary rounded px-md py-sm text-label-md font-mono text-primary hover:bg-surface-container-low flex items-center gap-xs transition-colors"
+    >
+        <span class="material-symbols-outlined text-[18px]">
+            filter_list
+        </span>
+
+        Filter
+    </button>
+
+    {{-- Clear --}}
+    @if(
+        $filters['search'] !== ''
+        || $filters['status'] !== ''
+        || $filters['date_from'] !== ''
+        || $filters['date_to'] !== ''
+    )
+        <a
+            href="{{ route('history') }}"
+            class="px-md py-sm text-label-md font-mono text-on-surface-variant hover:text-primary transition-colors"
+        >
+            Clear
+        </a>
+    @endif
+</form>
 
 
 {{-- ========================================================= --}}
@@ -158,12 +146,12 @@
     $curSort = $filters['sort'];
     $curDir = $filters['dir'];
 
-    // Creates sortable header links while preserving active filters.
+    /*
+     * Creates sortable links while preserving all active filters.
+     */
     $sortLink = function (string $col) use ($curSort, $curDir) {
         $isActive = $curSort === $col;
 
-        // First click = ASC.
-        // Clicking the same column again = DESC.
         $nextDir = ($isActive && $curDir === 'asc')
             ? 'desc'
             : 'asc';
@@ -201,7 +189,9 @@
         class="w-full text-left border-collapse"
         id="meetingsTable"
     >
+
         <thead class="bg-surface-container-low border-b border-outline-variant">
+
             <tr>
 
                 {{-- Meeting Date --}}
@@ -210,6 +200,7 @@
                 @endphp
 
                 <th class="px-md py-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-semibold">
+
                     <a
                         href="{{ $s->url }}"
                         class="flex items-center gap-xs hover:text-primary transition-colors"
@@ -218,12 +209,16 @@
 
                         <span class="material-symbols-outlined text-[16px]">
                             @if($s->active)
-                                {{ $s->dir === 'asc' ? 'arrow_upward' : 'arrow_downward' }}
+                                {{ $s->dir === 'asc'
+                                    ? 'arrow_upward'
+                                    : 'arrow_downward'
+                                }}
                             @else
                                 unfold_more
                             @endif
                         </span>
                     </a>
+
                 </th>
 
 
@@ -233,6 +228,7 @@
                 @endphp
 
                 <th class="px-md py-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-semibold">
+
                     <a
                         href="{{ $s->url }}"
                         class="flex items-center gap-xs hover:text-primary transition-colors"
@@ -241,12 +237,16 @@
 
                         <span class="material-symbols-outlined text-[16px]">
                             @if($s->active)
-                                {{ $s->dir === 'asc' ? 'arrow_upward' : 'arrow_downward' }}
+                                {{ $s->dir === 'asc'
+                                    ? 'arrow_upward'
+                                    : 'arrow_downward'
+                                }}
                             @else
                                 unfold_more
                             @endif
                         </span>
                     </a>
+
                 </th>
 
 
@@ -256,6 +256,7 @@
                 @endphp
 
                 <th class="px-md py-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-semibold">
+
                     <a
                         href="{{ $s->url }}"
                         class="flex items-center gap-xs hover:text-primary transition-colors"
@@ -264,12 +265,16 @@
 
                         <span class="material-symbols-outlined text-[16px]">
                             @if($s->active)
-                                {{ $s->dir === 'asc' ? 'arrow_upward' : 'arrow_downward' }}
+                                {{ $s->dir === 'asc'
+                                    ? 'arrow_upward'
+                                    : 'arrow_downward'
+                                }}
                             @else
                                 unfold_more
                             @endif
                         </span>
                     </a>
+
                 </th>
 
 
@@ -279,6 +284,7 @@
                 @endphp
 
                 <th class="px-md py-sm text-label-sm font-mono text-on-surface-variant uppercase tracking-wider font-semibold">
+
                     <a
                         href="{{ $s->url }}"
                         class="flex items-center gap-xs hover:text-primary transition-colors"
@@ -287,12 +293,16 @@
 
                         <span class="material-symbols-outlined text-[16px]">
                             @if($s->active)
-                                {{ $s->dir === 'asc' ? 'arrow_upward' : 'arrow_downward' }}
+                                {{ $s->dir === 'asc'
+                                    ? 'arrow_upward'
+                                    : 'arrow_downward'
+                                }}
                             @else
                                 unfold_more
                             @endif
                         </span>
                     </a>
+
                 </th>
 
 
@@ -304,6 +314,7 @@
                 </th>
 
             </tr>
+
         </thead>
 
 
@@ -338,7 +349,9 @@
                     <td class="px-md py-md">
                         @include(
                             'partials.status-badge',
-                            ['status' => $meeting->status]
+                            [
+                                'status' => $meeting->status
+                            ]
                         )
                     </td>
 
@@ -362,33 +375,39 @@
             @empty
 
                 <tr>
+
                     <td
                         colspan="5"
                         class="px-md py-xl text-center text-body-md font-sans text-on-surface-variant"
                     >
                         No meetings found.
                     </td>
+
                 </tr>
 
             @endforelse
 
         </tbody>
+
     </table>
+
 </div>
 
 
 {{-- ========================================================= --}}
-{{-- SHARED ANALYSIS DETAIL MODAL --}}
+{{-- ANALYSIS DETAIL MODAL --}}
 {{-- ========================================================= --}}
 
 @livewire(
     'analysis-detail-modal',
-    ['analysisId' => $selectedAnalysisId]
+    [
+        'analysisId' => $selectedAnalysisId
+    ]
 )
 
 
 {{-- ========================================================= --}}
-{{-- OPEN MEETING MODAL --}}
+{{-- JAVASCRIPT --}}
 {{-- ========================================================= --}}
 
 @push('scripts')
@@ -396,29 +415,230 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
 
+        /*
+         * =====================================================
+         * MEETING DETAIL MODAL
+         * =====================================================
+         */
+
         const table = document.getElementById('meetingsTable');
 
-        if (!table) {
+        if (table) {
+
+            table.addEventListener('click', (event) => {
+
+                const row = event.target.closest(
+                    'tr[data-meeting-id]'
+                );
+
+                if (!row) {
+                    return;
+                }
+
+                const meetingId = row.dataset.meetingId;
+
+                Livewire.dispatch(
+                    'openMeetingModal',
+                    meetingId
+                );
+            });
+        }
+
+
+        /*
+         * =====================================================
+         * AUTOMATIC FILTERING
+         * =====================================================
+         */
+
+        const filtersForm =
+            document.getElementById('historyFilters');
+
+        const searchInput =
+            document.getElementById('search');
+
+        const statusSelect =
+            document.getElementById('status');
+
+        const dateFromInput =
+            document.getElementById('date_from');
+
+        const dateToInput =
+            document.getElementById('date_to');
+
+
+        if (!filtersForm) {
             return;
         }
 
-        table.addEventListener('click', (event) => {
 
-            const row = event.target.closest(
-                'tr[data-meeting-id]'
+        /*
+         * =====================================================
+         * RESTORE SEARCH FOCUS
+         * =====================================================
+         *
+         * The GET filter reloads the page.
+         *
+         * We remember whether the user was typing and the
+         * cursor position before submitting.
+         *
+         * After Laravel renders the new page, focus and cursor
+         * position are restored automatically.
+         */
+
+        if (
+            searchInput
+            && sessionStorage.getItem('historySearchFocus') === '1'
+        ) {
+
+            searchInput.focus();
+
+            const storedCursor =
+                sessionStorage.getItem(
+                    'historySearchCursor'
+                );
+
+            const cursorPosition =
+                storedCursor !== null
+                    ? Number(storedCursor)
+                    : searchInput.value.length;
+
+            /*
+             * Make sure the cursor does not exceed
+             * the current input length.
+             */
+            const safeCursorPosition =
+                Math.min(
+                    cursorPosition,
+                    searchInput.value.length
+                );
+
+            searchInput.setSelectionRange(
+                safeCursorPosition,
+                safeCursorPosition
             );
 
-            if (!row) {
-                return;
-            }
-
-            const meetingId = row.dataset.meetingId;
-
-            Livewire.dispatch(
-                'openMeetingModal',
-                meetingId
+            sessionStorage.removeItem(
+                'historySearchFocus'
             );
-        });
+
+            sessionStorage.removeItem(
+                'historySearchCursor'
+            );
+        }
+
+
+        /*
+         * =====================================================
+         * SEARCH WITH DEBOUNCE
+         * =====================================================
+         *
+         * Wait 400ms after the user stops typing before
+         * sending the GET request.
+         */
+
+        let searchTimeout = null;
+
+        if (searchInput) {
+
+            searchInput.addEventListener(
+                'input',
+                () => {
+
+                    clearTimeout(searchTimeout);
+
+                    /*
+                     * Remember that the search input
+                     * should receive focus after reload.
+                     */
+                    sessionStorage.setItem(
+                        'historySearchFocus',
+                        '1'
+                    );
+
+                    /*
+                     * Remember cursor position.
+                     */
+                    sessionStorage.setItem(
+                        'historySearchCursor',
+                        String(
+                            searchInput.selectionStart
+                            ?? searchInput.value.length
+                        )
+                    );
+
+                    /*
+                     * Wait until user pauses typing.
+                     */
+                    searchTimeout = setTimeout(
+                        () => {
+
+                            filtersForm.requestSubmit();
+
+                        },
+                        400
+                    );
+                }
+            );
+        }
+
+
+        /*
+         * =====================================================
+         * STATUS AUTO FILTER
+         * =====================================================
+         */
+
+        if (statusSelect) {
+
+            statusSelect.addEventListener(
+                'change',
+                () => {
+
+                    filtersForm.requestSubmit();
+
+                }
+            );
+        }
+
+
+        /*
+         * =====================================================
+         * DATE FROM AUTO FILTER
+         * =====================================================
+         */
+
+        if (dateFromInput) {
+
+            dateFromInput.addEventListener(
+                'change',
+                () => {
+
+                    filtersForm.requestSubmit();
+
+                }
+            );
+        }
+
+
+        /*
+         * =====================================================
+         * DATE TO AUTO FILTER
+         * =====================================================
+         */
+
+        if (dateToInput) {
+
+            dateToInput.addEventListener(
+                'change',
+                () => {
+
+                    filtersForm.requestSubmit();
+
+                }
+            );
+        }
+
     });
 </script>
 
