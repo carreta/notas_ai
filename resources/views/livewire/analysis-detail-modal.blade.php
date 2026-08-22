@@ -4,7 +4,7 @@
     $decisions = $result['decisions'] ?? [];
     $actionItems = $result['action_items'] ?? [];
     $openQuestions = $result['open_questions'] ?? [];
-    $meeting = $analysis?->meeting;
+    $meeting = $analysis?->meeting ?? $meeting ?? null;
     $meetingTitle = $meeting?->title ?? 'Unknown Meeting';
     $meetingDate = $meeting?->meeting_time?->format('M d, Y') ?? 'Unknown Date';
     // TODO: Implement duration from analysis_metadata when available

@@ -283,4 +283,62 @@ class HistoryControllerTest extends TestCase
         $response->assertSee('openMeetingModal');
         $response->assertSee($meeting->id);
     }
+
+    public function test_analyzing_meeting_shows_processing_and_not_completed(): void
+    {
+        Meeting::create([
+            'title' => 'In Progress Meeting',
+            'raw_text' => 'notes',
+            'status' => 'ANALYZING',
+        ]);
+
+        $response = $this->get('/history');
+
+        $response->assertSee('Analyzing');
+        $response->assertSee('In Progress Meeting');
+        // It must not be presented with the COMPLETED badge styling.
+        $response->assertDontSee('bg-secondary-container text-on-secondary-container');
+    }
+
+    public function test_sort_by_meeting_time_asc_and_desc(): void
+    {
+        // Distinct meeting_time values; created_at is left to default so the
+        // meeting_time sort is the only thing ordering these rows.
+        $older = Meeting::create([
+            'title' => 'Older Meeting Time',
+            'raw_text' => 'notes',
+            'status' => 'COMPLETED',
+            'meeting_time' => now()->subDays(10),
+        ]);
+        $newer = Meeting::create([
+            'title' => 'Newer Meeting Time',
+            'raw_text' => 'notes',
+            'status' => 'COMPLETED',
+            'meeting_time' => now()->subDays(1),
+        ]);
+
+        $asc = $this->get('/history?sort=meeting_time&dir=asc')->getContent();
+        // Older meeting_time should appear before the newer one (ascending).
+        $this->assertLessThan(strpos($asc, 'Newer Meeting Time'), strpos($asc, 'Older Meeting Time'));
+
+        $desc = $this->get('/history?sort=meeting_time&dir=desc')->getContent();
+        // Newer meeting_time should appear before the older one (descending).
+        $this->assertLessThan(strpos($desc, 'Older Meeting Time'), strpos($desc, 'Newer Meeting Time'));
+    }
+
+    public function test_invalid_direction_falls_back_to_desc(): void
+    {
+        $older = Meeting::create(['title' => 'Older Title', 'raw_text' => 'notes', 'status' => 'COMPLETED']);
+        Meeting::whereKey($older->id)->update(['created_at' => now()->subDay()]);
+        Meeting::create(['title' => 'Newer Title', 'raw_text' => 'notes', 'status' => 'COMPLETED']);
+
+        $response = $this->get('/history?sort=title&dir=invalid');
+
+        $response->assertStatus(200);
+        $html = $response->getContent();
+
+        // Invalid dir must fall back to desc: by title, 'Older' > 'Newer'
+        // alphabetically, so Older appears before Newer.
+        $this->assertLessThan(strpos($html, 'Newer Title'), strpos($html, 'Older Title'));
+    }
 }

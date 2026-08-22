@@ -7,7 +7,7 @@
     $decisions = $result['decisions'] ?? [];
     $actionItems = $result['action_items'] ?? [];
     $openQuestions = $result['open_questions'] ?? [];
-    $meeting = $analysis?->meeting;
+    $meeting = $analysis?->meeting ?? $meeting ?? null;
     $meetingTitle = $meeting?->title ?? 'Unknown Meeting';
     $meetingDate = $meeting?->meeting_time?->format('M d, Y') ?? 'Unknown Date';
     $duration = 'N/A';
@@ -94,6 +94,33 @@
                             {{ is_array($item) ? ($item['task'] ?? '') : $item }}
                         </p>
 
+                        @php
+                            // Due date display: prefer resolved absolute date, otherwise
+                            // fall back to the original relative expression so users still
+                            // see a due-date signal when only due_date_text is available
+                            // (e.g. due_date = null, due_date_text = "next Friday").
+                            $dueDisplay = null;
+                            if (! empty($item['due_date'])) {
+                                $dueDisplay = \Carbon\Carbon::parse($item['due_date'])->format('M d, Y');
+                            } elseif (! empty($item['due_date_text'])) {
+                                $dueDisplay = $item['due_date_text'];
+                            }
+
+                            // Subtle provenance labels (TD-010 / TD-011). These are shown
+                            // only when present and kept visually muted on purpose.
+                            $prioritySourceLabel = [
+                                'EXPLICIT' => 'Explicit',
+                                'INFERRED' => 'Inferred',
+                            ][$item['priority_source'] ?? ''] ?? null;
+
+                            $dueSourceLabel = [
+                                'EXPLICIT' => 'Explicit',
+                                'RESOLVED' => 'Resolved',
+                                'INFERRED' => 'Inferred',
+                                'UNRESOLVED' => 'Unresolved',
+                            ][$item['due_date_source'] ?? ''] ?? null;
+                        @endphp
+
                         <div class="flex items-center gap-md mt-xs text-label-sm font-label-sm">
                             @if(isset($item['owner']) && $item['owner'])
                             <span class="bg-primary-fixed text-on-primary-fixed px-xs py-0.5 rounded">
@@ -107,15 +134,21 @@
                                     flag
                                 </span>
                                 Priority: {{ $item['priority'] }}
+                                @if($prioritySourceLabel)
+                                <span class="opacity-70">· {{ $prioritySourceLabel }}</span>
+                                @endif
                             </span>
                             @endif
 
-                            @if(isset($item['due_date']) && $item['due_date'])
+                            @if($dueDisplay)
                             <span class="flex items-center gap-xs {{ isset($item['priority']) && $item['priority'] === 'HIGH' ? 'text-error' : 'text-on-surface-variant' }}">
                                 <span class="material-symbols-outlined text-[14px]">
                                     event
                                 </span>
-                                Due: {{ \Carbon\Carbon::parse($item['due_date'])->format('M d, Y') }}
+                                Due: {{ $dueDisplay }}
+                                @if($dueSourceLabel)
+                                <span class="opacity-70">· {{ $dueSourceLabel }}</span>
+                                @endif
                             </span>
                             @endif
                         </div>

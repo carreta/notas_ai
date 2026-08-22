@@ -17,6 +17,8 @@ class AnalysisDetailModal extends Component
 
     public ?Analysis $analysis = null;
 
+    public ?Meeting $meeting = null;
+
     public string $activeTab = 'analysis';
 
     // Re-analyze properties. Valid states: idle, analyzing, completed, error.
@@ -72,6 +74,7 @@ class AnalysisDetailModal extends Component
         $this->analysisId = null;
         $this->meetingId = null;
         $this->analysis = null;
+        $this->meeting = null;
         $this->activeTab = 'analysis';
         $this->resetReAnalyze();
     }
@@ -95,7 +98,7 @@ class AnalysisDetailModal extends Component
 
     public function executeReAnalyze(): void
     {
-        if (!$this->analysis || !$this->analysis->meeting) {
+        if (! $this->analysis || ! $this->analysis->meeting) {
             return;
         }
 
@@ -116,7 +119,7 @@ class AnalysisDetailModal extends Component
             return;
         }
 
-        if (!$outcome->success) {
+        if (! $outcome->success) {
             $this->handleReAnalyzeFailure($outcome->userMessage, $outcome->category);
 
             return;
@@ -168,13 +171,16 @@ class AnalysisDetailModal extends Component
     {
         if ($this->analysisId) {
             $this->analysis = Analysis::with('meeting')->find($this->analysisId);
+            $this->meeting = Meeting::query()->find($this->analysis?->meeting_id);
         }
     }
 
     private function loadAnalysisFromMeeting(): void
     {
         if ($this->meetingId) {
-            $meeting = Meeting::with('analysis')->find($this->meetingId);
+            $meeting = Meeting::query()->find($this->meetingId);
+            $meeting?->load('analysis');
+            $this->meeting = $meeting;
             /** @var Analysis|null $analysis */
             $analysis = $meeting?->analysis;
             $this->analysis = $analysis;
@@ -201,6 +207,7 @@ class AnalysisDetailModal extends Component
     {
         return view('livewire.analysis-detail-modal', [
             'analysis' => $this->analysis,
+            'meeting' => $this->meeting,
             'activeTab' => $this->activeTab,
             'showModal' => $this->analysisId !== null || $this->meetingId !== null,
             'models' => $this->models,
