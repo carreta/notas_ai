@@ -110,7 +110,7 @@
 
         <!-- Title & Date -->
         <div class="flex flex-col md:flex-row gap-lg">
-            <div class="flex-1 flex flex-col gap-xs">
+            <div class="flex-1 flex flex-col gap-xs" x-data="{ titleHasInteracted: false, titleShowError: false, titleErrorTimer: null }">
                 <label
                     class="font-mono text-label-md text-on-surface-variant"
                     for="meeting_title"
@@ -122,17 +122,31 @@
                     type="text"
                     wire:model="meeting_title"
                     id="meeting_title"
+                    required
                     class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm text-body-md font-sans text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary input-transition"
+                    :class="{'border-error! bg-error-container! focus:border-error! focus:ring-error! border-2': titleShowError}"
                     placeholder="e.g., Q3 Planning Session"
+                    x-on:focus="titleHasInteracted = true; titleErrorTimer = setTimeout(() => { if (!$wire.meeting_title) titleShowError = true; }, 2000)"
+                    x-on:blur="clearTimeout(titleErrorTimer); if (!$wire.meeting_title) titleShowError = true;"
+                    x-on:input="if ($wire.meeting_title) titleShowError = false;"
                 >
+
+                <template x-if="titleShowError">
+                    <p class="font-sans text-body-sm text-error italic mt-xs" role="alert">
+                        Title is required
+                    </p>
+                </template>
             </div>
 
-            <div class="md:w-1/3 flex flex-col gap-xs">
+            <div class="md:w-1/3 flex flex-col gap-xs" x-data="{ dateHasInteracted: false, dateShowError: false, dateErrorTimer: null, checkDateError() { const dateVal = $wire.meeting_date; if (dateVal) { const d = new Date(dateVal + 'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0); this.dateShowError = d > today; } else { this.dateShowError = false; } } }">
                 <label
-                    class="font-mono text-label-md text-on-surface-variant"
+                    class="font-mono text-label-md text-on-surface-variant flex items-center gap-1"
                     for="meeting_date"
                 >
                     Meeting Date
+                    <span class="font-sans text-body-xs text-on-surface-variant/70">
+                        - Optional
+                    </span>
                 </label>
 
                 <div class="relative">
@@ -141,13 +155,23 @@
                         wire:model="meeting_date"
                         id="meeting_date"
                         class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm text-body-md font-sans text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary input-transition appearance-none"
+                        :class="{ 'border-error! bg-error-container! focus:border-error! focus:ring-error! border-2': dateShowError }"
+                        x-on:focus="dateHasInteracted = true; dateErrorTimer = setTimeout(() => { checkDateError(); }, 2000)"
+                        x-on:blur="clearTimeout(dateErrorTimer); checkDateError();"
+                        x-on:change="checkDateError();"
                     >
                 </div>
+
+                <template x-if="dateShowError">
+                    <p class="font-sans text-body-sm text-error italic mt-xs" role="alert">
+                        Date cannot be in the future
+                    </p>
+                </template>
             </div>
         </div>
 
         <!-- Transcript Textarea -->
-        <div class="flex flex-col gap-xs">
+        <div class="flex flex-col gap-xs" x-data="{ transcriptHasInteracted: false, transcriptShowError: false, transcriptErrorTimer: null }">
             <div class="flex justify-between items-end">
                 <label
                     class="font-mono text-label-md text-on-surface-variant"
@@ -165,14 +189,24 @@
                 wire:model="meeting_text"
                 id="meeting_text"
                 rows="12"
+                required
                 placeholder="Paste your transcript here..."
-                x-on:input="characterCount = $event.target.value.length"
+                x-on:input="characterCount = $event.target.value.length; if ($wire.meeting_text.trim()) transcriptShowError = false;"
+                x-on:focus="transcriptHasInteracted = true; transcriptErrorTimer = setTimeout(() => { if (!$wire.meeting_text.trim()) transcriptShowError = true; }, 2000)"
+                x-on:blur="clearTimeout(transcriptErrorTimer); if (!$wire.meeting_text.trim()) transcriptShowError = true;"
                 class="w-full bg-surface border border-outline-variant rounded-lg p-md text-body-sm text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary input-transition resize-y font-mono"
+                :class="{ 'border-error! bg-error-container! focus:border-error! focus:ring-error! border-2': transcriptShowError }"
             ></textarea>
+
+            <template x-if="transcriptShowError">
+                <p class="font-sans text-body-sm text-error italic mt-xs" role="alert">
+                    Transcript is required
+                </p>
+            </template>
 
             <!-- Character Counter -->
             <div
-                class="font-mono text-label-sm mt-md flex items-center gap-1"
+                class="font-mono text-label-sm mt-sm flex items-center gap-1"
                 :class="{ 'text-error': overLimit }"
             >
                 <span x-text="characterCount"></span>
