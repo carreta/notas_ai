@@ -42,14 +42,14 @@ final class LLMAdapter implements AnalysisProvider
         // Resolve provider config at RUNTIME from the request's provider/modelKey
         // This allows per-request provider selection (user chooses model in UI).
         $provider = $request->provider ?? Config::get('ai.provider', 'openai');
-        $modelKey = $request->modelKey ?? Config::get('ai.provider', 'openai');
+        $modelKey = $request->modelKey ?? Config::get('ai.model', 'gpt-5.6-luna');
 
         $providerConfig = Config::get("ai.providers.{$provider}") ?? [];
         $modelConfig = Config::get("models.{$modelKey}") ?? [];
 
         $baseUrl = $providerConfig['base_url'] ?? Config::get('ai.providers.openai.base_url', 'https://api.openai.com/v1');
         $apiKey = $providerConfig['api_key'] ?? Config::get('ai.providers.openai.api_key', '');
-        $model = $modelConfig['model'] ?? $providerConfig['model'] ?? Config::get('ai.model', 'gpt-4o-mini');
+        $model = $modelConfig['model'] ?? $providerConfig['model'] ?? Config::get('ai.model', 'gpt-5.6-luna');
         $timeout = (int) ($providerConfig['timeout'] ?? Config::get('ai.timeout', 120));
 
         if ($apiKey === '') {

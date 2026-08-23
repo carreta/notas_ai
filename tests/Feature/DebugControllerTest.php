@@ -74,7 +74,7 @@ class DebugControllerTest extends TestCase
             'meeting_id' => $meeting->id,
             'status' => 'COMPLETED',
             'provider' => 'openai',
-            'model' => 'gpt-4o-mini',
+            'model' => 'gpt-5.6-luna',
             'prompt_version' => $prompt->version,
             'started_at' => '2026-08-21 14:30:00',
             'completed_at' => '2026-08-21 14:30:04',
@@ -98,7 +98,7 @@ class DebugControllerTest extends TestCase
             ->assertSee('Log inspection meeting')
             ->call('selectMeeting', $meeting->id)
             ->assertSet('selectedMeetingId', $meeting->id)
-            ->assertSee('gpt-4o-mini')
+            ->assertSee('gpt-5.6-luna')
             ->assertSee('125')
             ->call('selectLog', $log->id)
             ->assertSet('selectedLogId', $log->id)

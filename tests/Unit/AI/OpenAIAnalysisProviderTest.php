@@ -23,9 +23,9 @@ final class OpenAIAnalysisProviderTest extends TestCase
         return new AnalysisRequest(
             content: 'Test transcript',
             referenceDate: '2025-09-15',
-            model: 'gpt-4o-mini',
+            model: 'gpt-5.6-luna',
             provider: 'openai',
-            modelKey: 'openai-gpt-4o-mini',
+            modelKey: 'openai-gpt-5.6-luna',
         );
     }
 
@@ -39,7 +39,7 @@ final class OpenAIAnalysisProviderTest extends TestCase
             ], 200),
         ]);
 
-        $provider = new OpenAIAnalysisProvider(apiKey: 'test-key', model: 'gpt-4o-mini', timeout: 30);
+        $provider = new OpenAIAnalysisProvider(apiKey: 'test-key', model: 'gpt-5.6-luna', timeout: 30);
         $result = $provider->analyze($this->makeRequest());
 
         $this->assertSame('{"summary":"ok"}', $result);
@@ -61,7 +61,7 @@ final class OpenAIAnalysisProviderTest extends TestCase
             '*/chat/completions' => Http::response(['error' => ['message' => 'Unauthorized']], 401),
         ]);
 
-        $provider = new OpenAIAnalysisProvider(apiKey: 'bad', model: 'gpt-4o-mini', timeout: 30);
+        $provider = new OpenAIAnalysisProvider(apiKey: 'bad', model: 'gpt-5.6-luna', timeout: 30);
 
         $this->expectException(AiConfigurationException::class);
         $this->expectExceptionMessage('rejected the request credentials');
@@ -75,7 +75,7 @@ final class OpenAIAnalysisProviderTest extends TestCase
             '*/chat/completions' => Http::response(['error' => ['message' => 'rate']], 429),
         ]);
 
-        $provider = new OpenAIAnalysisProvider(apiKey: 'k', model: 'gpt-4o-mini', timeout: 30);
+        $provider = new OpenAIAnalysisProvider(apiKey: 'k', model: 'gpt-5.6-luna', timeout: 30);
 
         $this->expectException(AiRateLimitException::class);
         $this->expectExceptionMessage('rate limit');
@@ -89,7 +89,7 @@ final class OpenAIAnalysisProviderTest extends TestCase
             '*/chat/completions' => Http::response(['error' => ['message' => 'boom']], 500),
         ]);
 
-        $provider = new OpenAIAnalysisProvider(apiKey: 'k', model: 'gpt-4o-mini', timeout: 30);
+        $provider = new OpenAIAnalysisProvider(apiKey: 'k', model: 'gpt-5.6-luna', timeout: 30);
 
         $this->expectException(AiDependencyException::class);
         $this->expectExceptionMessage('server error');
@@ -103,7 +103,7 @@ final class OpenAIAnalysisProviderTest extends TestCase
             '*/chat/completions' => Http::response(['choices' => [['message' => ['content' => '']]]], 200),
         ]);
 
-        $provider = new OpenAIAnalysisProvider(apiKey: 'k', model: 'gpt-4o-mini', timeout: 30);
+        $provider = new OpenAIAnalysisProvider(apiKey: 'k', model: 'gpt-5.6-luna', timeout: 30);
 
         $this->expectException(AiInvalidResponseException::class);
         $this->expectExceptionMessage('empty analysis');
@@ -117,7 +117,7 @@ final class OpenAIAnalysisProviderTest extends TestCase
             throw new ConnectionException('connection refused');
         });
 
-        $provider = new OpenAIAnalysisProvider(apiKey: 'k', model: 'gpt-4o-mini', timeout: 30);
+        $provider = new OpenAIAnalysisProvider(apiKey: 'k', model: 'gpt-5.6-luna', timeout: 30);
 
         $this->expectException(AiDependencyException::class);
         $this->expectExceptionMessage('could not be reached');
@@ -130,7 +130,7 @@ final class OpenAIAnalysisProviderTest extends TestCase
         // The production container builds OpenAIAnalysisProvider via the factory;
         // this asserts the default LLMAdapter still satisfies the port and that
         // a provider instance is constructible with the configured timeout.
-        $this->assertInstanceOf(OpenAIAnalysisProvider::class, new OpenAIAnalysisProvider('k', 'gpt-4o-mini', 120));
+        $this->assertInstanceOf(OpenAIAnalysisProvider::class, new OpenAIAnalysisProvider('k', 'gpt-5.6-luna', 120));
         $this->assertInstanceOf(LLMAdapter::class, new LLMAdapter);
     }
 }

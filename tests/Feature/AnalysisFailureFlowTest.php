@@ -34,7 +34,7 @@ class AnalysisFailureFlowTest extends TestCase
 
         config([
             'ai.provider' => 'openai',
-            'ai.model' => 'gpt-4o-mini',
+            'ai.model' => 'gpt-5.6-luna',
             'ai.schema_version' => 'meeting-analysis-v1',
         ]);
     }

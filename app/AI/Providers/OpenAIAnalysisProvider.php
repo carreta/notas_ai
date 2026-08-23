@@ -34,7 +34,7 @@ final class OpenAIAnalysisProvider implements AnalysisProvider
 {
     public function __construct(
         private readonly string $apiKey = '',
-        private readonly string $model = 'gpt-4o-mini',
+        private readonly string $model = 'gpt-5.6-luna',
         private readonly int $timeout = 120,
         private readonly string $baseUrl = 'https://api.openai.com/v1',
     ) {}

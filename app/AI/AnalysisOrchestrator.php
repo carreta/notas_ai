@@ -59,7 +59,7 @@ final class AnalysisOrchestrator
 
         $metadata = new AnalysisMetadata(
             provider: $provider ?? $meeting->provider ?? (string) config('ai.provider', 'openai'),
-            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-4o-mini'),
+            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-5.6-luna'),
             schemaVersion: (string) config('ai.schema_version', 'meeting-analysis-v1'),
             startedAt: $startedAt,
             completedAt: new DateTimeImmutable,
@@ -109,7 +109,7 @@ final class AnalysisOrchestrator
 
         $metadata = new AnalysisMetadata(
             provider: $provider ?? $meeting->provider ?? (string) config('ai.provider', 'openai'),
-            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-4o-mini'),
+            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-5.6-luna'),
             schemaVersion: (string) config('ai.schema_version', 'meeting-analysis-v1'),
             startedAt: $startedAt,
             completedAt: new DateTimeImmutable,
@@ -139,7 +139,7 @@ final class AnalysisOrchestrator
     ): AnalysisOutcome {
         $metadata = new AnalysisMetadata(
             provider: $provider ?? $meeting->provider ?? (string) config('ai.provider', 'openai'),
-            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-4o-mini'),
+            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-5.6-luna'),
             schemaVersion: (string) config('ai.schema_version', 'meeting-analysis-v1'),
             startedAt: $startedAt,
             completedAt: new DateTimeImmutable,
@@ -170,7 +170,7 @@ final class AnalysisOrchestrator
 
         // The model to send to the provider - use the model from the selected model config
         // or the provider's default model
-        $model = $modelConfig['model'] ?? $providerConfig['model'] ?? config('ai.model', 'gpt-4o-mini');
+        $model = $modelConfig['model'] ?? $providerConfig['model'] ?? config('ai.model', 'gpt-5.6-luna');
 
         return new AnalysisRequest(
             content: $meeting->raw_text ?? '',
