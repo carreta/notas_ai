@@ -55,7 +55,8 @@ final class LLMAdapterGeminiTest extends TestCase
             ], 200);
         });
 
-        $result = (new LLMAdapter)->analyze($this->geminiRequest());
+        $providerResult = (new LLMAdapter)->analyze($this->geminiRequest());
+        $result = $providerResult->content;
 
         $this->assertSame('{"summary":"ok"}', $result);
         $this->assertSame(

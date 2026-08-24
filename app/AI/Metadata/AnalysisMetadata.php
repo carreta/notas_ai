@@ -11,6 +11,7 @@ use DateTimeInterface;
  *  - provider/model identifiers (controlled application values, not secrets);
  *  - schema/prompt version identifier;
  *  - started/completed timestamps and duration;
+ *  - optional token usage from the provider (best-effort);
  *  - an optional safe failure category.
  *
  * It must never carry provider SDK objects, API keys, Authorization
@@ -25,6 +26,9 @@ final readonly class AnalysisMetadata
         public ?DateTimeInterface $startedAt = null,
         public ?DateTimeInterface $completedAt = null,
         public ?int $durationMs = null,
+        public ?int $promptTokens = null,
+        public ?int $completionTokens = null,
+        public ?int $totalTokens = null,
         public ?string $failureCategory = null,
     ) {}
 }

@@ -102,6 +102,9 @@ final class AnalysisPersistenceService
             'schema_version' => $metadata->schemaVersion,
             'duration_ms' => $metadata->durationMs,
             'failure_category' => $metadata->failureCategory,
+            'prompt_tokens' => $metadata->promptTokens,
+            'completion_tokens' => $metadata->completionTokens,
+            'total_tokens' => $metadata->totalTokens,
         ]);
 
         return DB::transaction(function () use ($meeting, $result, $metadata): Analysis {
@@ -136,9 +139,9 @@ final class AnalysisPersistenceService
                 $this->log('[TEMP][AnalysisPersistenceService] Creating AiMetric');
                 AiMetric::create([
                     'analysis_id' => $analysis->id,
-                    'prompt_tokens' => 0,
-                    'completion_tokens' => 0,
-                    'total_tokens' => 0,
+                    'prompt_tokens' => $metadata->promptTokens ?? 0,
+                    'completion_tokens' => $metadata->completionTokens ?? 0,
+                    'total_tokens' => $metadata->totalTokens ?? 0,
                     'duration_ms' => $metadata->durationMs,
                 ]);
                 // TODO: Revert once testing is sufficient - remove temporary logging
@@ -205,9 +208,9 @@ final class AnalysisPersistenceService
                 AiMetric::updateOrCreate(
                     ['analysis_id' => $analysis->id],
                     [
-                        'prompt_tokens' => 0,
-                        'completion_tokens' => 0,
-                        'total_tokens' => 0,
+                        'prompt_tokens' => $metadata->promptTokens ?? 0,
+                        'completion_tokens' => $metadata->completionTokens ?? 0,
+                        'total_tokens' => $metadata->totalTokens ?? 0,
                         'duration_ms' => $metadata->durationMs,
                     ]
                 );

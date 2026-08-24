@@ -8,6 +8,7 @@ use App\AI\Exceptions\AiDependencyException;
 use App\AI\Exceptions\AiInvalidResponseException;
 use App\AI\Exceptions\AiRateLimitException;
 use App\AI\Exceptions\AiTimeoutException;
+use App\AI\Providers\AnalysisProviderResult;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\ConnectTimeoutException;
 use GuzzleHttp\Exception\NetworkTimeoutException;
@@ -37,7 +38,7 @@ use Throwable;
  */
 final class LLMAdapter implements AnalysisProvider
 {
-    public function analyze(AnalysisRequest $request): string
+    public function analyze(AnalysisRequest $request): AnalysisProviderResult
     {
         // TODO: Revert once testing is sufficient - remove temporary logging
         Log::info('[TEMP][LLMAdapter] analyze() started', [
@@ -253,9 +254,36 @@ final class LLMAdapter implements AnalysisProvider
             throw new AiInvalidResponseException('The AI provider returned an empty analysis.');
         }
 
+        // Extract token usage from response (best-effort; never break the primary flow)
+        $promptTokens = null;
+        $completionTokens = null;
+        $totalTokens = null;
+
+        try {
+            $usage = $response->json('usage');
+            if (is_array($usage)) {
+                $promptTokens = $usage['prompt_tokens'] ?? null;
+                $completionTokens = $usage['completion_tokens'] ?? null;
+                $totalTokens = $usage['total_tokens'] ?? null;
+            }
+        } catch (Throwable) {
+            // Intentionally ignored: token extraction is "nice to have" and must not
+            // fail the analysis. Log at debug level if needed.
+        }
+
         // TODO: Revert once testing is sufficient - remove temporary logging
-        Log::info('[TEMP][LLMAdapter] analyze() completed successfully');
-        return $content;
+        Log::info('[TEMP][LLMAdapter] analyze() completed successfully', [
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
+        ]);
+
+        return new AnalysisProviderResult(
+            content: $content,
+            promptTokens: $promptTokens,
+            completionTokens: $completionTokens,
+            totalTokens: $totalTokens,
+        );
     }
 
     private function isTimeout(?Throwable $e): bool

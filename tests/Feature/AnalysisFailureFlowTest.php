@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\AI\AnalysisOrchestrator;
 use App\AI\DTO\AnalysisRequest;
 use App\AI\Providers\AnalysisProvider;
+use App\AI\Providers\AnalysisProviderResult;
 use App\Models\Analysis;
 use App\Models\AnalysisLog;
 use App\Models\Meeting;
@@ -54,7 +55,7 @@ class AnalysisFailureFlowTest extends TestCase
     {
         return new class implements AnalysisProvider
         {
-            public function analyze(AnalysisRequest $request): string
+            public function analyze(AnalysisRequest $request): AnalysisProviderResult
             {
                 throw new \RuntimeException(self::DANGEROUS_TEXT);
             }

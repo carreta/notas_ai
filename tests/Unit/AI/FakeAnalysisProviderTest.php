@@ -20,7 +20,8 @@ class FakeAnalysisProviderTest extends TestCase
         $provider = new FakeAnalysisProvider;
         $provider->setOutcome('valid');
 
-        $raw = $provider->analyze(new AnalysisRequest('transcript'));
+        $providerResult = $provider->analyze(new AnalysisRequest('transcript'));
+        $raw = $providerResult->content;
 
         $result = (new StructuredAnalysisProcessor)->process($raw);
 
@@ -35,7 +36,8 @@ class FakeAnalysisProviderTest extends TestCase
 
         $this->expectException(AiInvalidResponseException::class);
 
-        (new StructuredAnalysisProcessor)->process($provider->analyze(new AnalysisRequest('x')));
+        $providerResult = $provider->analyze(new AnalysisRequest('x'));
+        (new StructuredAnalysisProcessor)->process($providerResult->content);
     }
 
     public function test_configuration_outcome_throws_configuration_exception(): void

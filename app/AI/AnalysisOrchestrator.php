@@ -9,6 +9,7 @@ use App\AI\Failure\FailureCategory;
 use App\AI\Metadata\AnalysisMetadata;
 use App\AI\Persistence\AnalysisPersistenceService;
 use App\AI\Providers\AnalysisProvider;
+use App\AI\Providers\AnalysisProviderResult;
 use App\Models\Analysis;
 use App\Models\Meeting;
 use Carbon\Carbon;
@@ -75,11 +76,15 @@ final class AnalysisOrchestrator
                 'provider_class' => get_class($this->provider),
             ]);
             // original: $raw = $this->provider->analyze($this->requestFor($meeting, $provider, $modelKey));
-            $raw = $this->provider->analyze($request);
+            $providerResult = $this->provider->analyze($request);
+            $raw = $providerResult->content;
             // TODO: Revert once testing is sufficient - remove temporary logging
             Log::info('[TEMP][AnalysisOrchestrator] Provider returned raw response', [
                 'raw_length' => mb_strlen($raw),
                 'raw_preview' => substr($raw, 0, 500),
+                'prompt_tokens' => $providerResult->promptTokens,
+                'completion_tokens' => $providerResult->completionTokens,
+                'total_tokens' => $providerResult->totalTokens,
             ]);
         } catch (Throwable $e) {
             // TODO: Revert once testing is sufficient - remove temporary logging
@@ -119,6 +124,9 @@ final class AnalysisOrchestrator
             startedAt: $startedAt,
             completedAt: new DateTimeImmutable,
             durationMs: $this->durationMs($startedMicro),
+            promptTokens: $providerResult->promptTokens,
+            completionTokens: $providerResult->completionTokens,
+            totalTokens: $providerResult->totalTokens,
             failureCategory: null,
         );
 
@@ -128,6 +136,9 @@ final class AnalysisOrchestrator
             'model' => $metadata->model,
             'schema_version' => $metadata->schemaVersion,
             'duration_ms' => $metadata->durationMs,
+            'prompt_tokens' => $metadata->promptTokens,
+            'completion_tokens' => $metadata->completionTokens,
+            'total_tokens' => $metadata->totalTokens,
         ]);
 
         try {
@@ -198,10 +209,14 @@ final class AnalysisOrchestrator
             // TODO: Revert once testing is sufficient - remove temporary logging
             Log::info('[TEMP][AnalysisOrchestrator] reAnalyze: Calling provider->analyze()');
             // original: $raw = $this->provider->analyze($this->requestFor($meeting, $provider, $modelKey));
-            $raw = $this->provider->analyze($request);
+            $providerResult = $this->provider->analyze($request);
+            $raw = $providerResult->content;
             // TODO: Revert once testing is sufficient - remove temporary logging
             Log::info('[TEMP][AnalysisOrchestrator] reAnalyze: Provider returned raw response', [
                 'raw_length' => mb_strlen($raw),
+                'prompt_tokens' => $providerResult->promptTokens,
+                'completion_tokens' => $providerResult->completionTokens,
+                'total_tokens' => $providerResult->totalTokens,
             ]);
         } catch (Throwable $e) {
             // TODO: Revert once testing is sufficient - remove temporary logging
@@ -234,6 +249,9 @@ final class AnalysisOrchestrator
             startedAt: $startedAt,
             completedAt: new DateTimeImmutable,
             durationMs: $this->durationMs($startedMicro),
+            promptTokens: $providerResult->promptTokens,
+            completionTokens: $providerResult->completionTokens,
+            totalTokens: $providerResult->totalTokens,
             failureCategory: null,
         );
 
@@ -289,6 +307,9 @@ final class AnalysisOrchestrator
             startedAt: $startedAt,
             completedAt: new DateTimeImmutable,
             durationMs: $this->durationMs($startedMicro),
+            promptTokens: null,
+            completionTokens: null,
+            totalTokens: null,
             failureCategory: $failure->category,
         );
 
