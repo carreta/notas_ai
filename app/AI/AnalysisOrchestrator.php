@@ -9,7 +9,6 @@ use App\AI\Failure\FailureCategory;
 use App\AI\Metadata\AnalysisMetadata;
 use App\AI\Persistence\AnalysisPersistenceService;
 use App\AI\Providers\AnalysisProvider;
-use App\AI\Providers\AnalysisProviderResult;
 use App\Models\Analysis;
 use App\Models\Meeting;
 use Carbon\Carbon;
@@ -91,6 +90,7 @@ final class AnalysisOrchestrator
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
         }
 
@@ -112,6 +112,7 @@ final class AnalysisOrchestrator
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
         }
 
@@ -157,6 +158,7 @@ final class AnalysisOrchestrator
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return $this->fail($meeting, $startedAt, $startedMicro, new AnalysisFailure(
                 FailureCategory::PERSISTENCE_ERROR,
                 'The analysis could not be saved.',
@@ -222,6 +224,7 @@ final class AnalysisOrchestrator
                 'exception' => $e::class,
                 'message' => $e->getMessage(),
             ]);
+
             return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
         }
 
@@ -237,6 +240,7 @@ final class AnalysisOrchestrator
                 'exception' => $e::class,
                 'message' => $e->getMessage(),
             ]);
+
             return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
         }
 
@@ -267,6 +271,7 @@ final class AnalysisOrchestrator
                 'exception' => $e::class,
                 'message' => $e->getMessage(),
             ]);
+
             return $this->fail($meeting, $startedAt, $startedMicro, new AnalysisFailure(
                 FailureCategory::PERSISTENCE_ERROR,
                 'The analysis could not be saved.',

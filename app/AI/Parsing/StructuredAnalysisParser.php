@@ -55,6 +55,7 @@ final class StructuredAnalysisParser
         if ($decoded !== null) {
             // TODO: Revert once testing is sufficient - remove temporary logging
             $this->log('[TEMP][StructuredAnalysisParser] Clean JSON parse successful');
+
             return $decoded;
         }
 
@@ -71,13 +72,14 @@ final class StructuredAnalysisParser
             if ($decoded !== null) {
                 // TODO: Revert once testing is sufficient - remove temporary logging
                 $this->log('[TEMP][StructuredAnalysisParser] Extracted JSON parse successful');
+
                 return $decoded;
             }
-        // TODO: Remove once testing is sufficient - remove temporary logging
+            // TODO: Remove once testing is sufficient - remove temporary logging
             $this->log('[TEMP][StructuredAnalysisParser] Extracted JSON parse failed');
         } else {
-            $this->log('[TEMP][StructuredAnalysisParser] No JSON object found in content');    
-        // TODO: End of remove
+            $this->log('[TEMP][StructuredAnalysisParser] No JSON object found in content');
+            // TODO: End of remove
         }
 
         // TODO: Revert once testing is sufficient - remove temporary logging
@@ -100,6 +102,7 @@ final class StructuredAnalysisParser
                 'message' => $e->getMessage(),
                 'json_preview' => substr($json, 0, 200),
             ]);
+
             return null;
         }
 
@@ -109,6 +112,7 @@ final class StructuredAnalysisParser
                 'type' => gettype($decoded),
                 'is_list' => is_array($decoded) ? array_is_list($decoded) : 'N/A',
             ]);
+
             return null;
         }
 
@@ -148,6 +152,7 @@ final class StructuredAnalysisParser
                                 'end' => $i,
                                 'length' => $i - $start + 1,
                             ]);
+
                             return $candidate;
                         }
                         // Not valid JSON, continue searching
@@ -159,6 +164,7 @@ final class StructuredAnalysisParser
 
         // TODO: Revert once testing is sufficient - remove temporary logging
         $this->log('[TEMP][StructuredAnalysisParser] extractJsonObject: no valid JSON object found');
+
         return null;
     }
 

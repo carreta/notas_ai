@@ -8,7 +8,6 @@ use App\AI\Exceptions\AiDependencyException;
 use App\AI\Exceptions\AiInvalidResponseException;
 use App\AI\Exceptions\AiRateLimitException;
 use App\AI\Exceptions\AiTimeoutException;
-use App\AI\Providers\AnalysisProviderResult;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\ConnectTimeoutException;
 use GuzzleHttp\Exception\NetworkTimeoutException;
@@ -61,7 +60,7 @@ final class LLMAdapter implements AnalysisProvider
         $apiKey = $providerConfig['api_key'] ?? Config::get('ai.providers.openai.api_key', '');
         $model = $modelConfig['model'] ?? $providerConfig['model'] ?? Config::get('ai.model', 'gpt-5.6-luna');
         $timeout = (int) ($providerConfig['timeout'] ?? Config::get('ai.timeout', 120));
-        
+
         // Read temperature from model config (optional, null = omit from request)
         $temperature = $modelConfig['temperature'] ?? $providerConfig['temperature'] ?? null;
 
@@ -71,7 +70,7 @@ final class LLMAdapter implements AnalysisProvider
             'model_key' => $modelKey,
             'model_config' => $modelConfig,
             'base_url' => $baseUrl,
-            'api_key_present' => !empty($apiKey),
+            'api_key_present' => ! empty($apiKey),
             'api_key_length' => mb_strlen($apiKey),
             'model' => $model,
             'timeout' => $timeout,
@@ -115,7 +114,7 @@ final class LLMAdapter implements AnalysisProvider
             @set_time_limit($timeout + 30);
             // TODO: Revert once testing is sufficient - remove temporary logging
             Log::info('[TEMP][LLMAdapter] Making HTTP request', [
-                'url' => $baseUrl . '/chat/completions',
+                'url' => $baseUrl.'/chat/completions',
                 'timeout' => $timeout,
             ]);
             $response = Http::withToken($apiKey)
@@ -345,7 +344,7 @@ final class LLMAdapter implements AnalysisProvider
         $prompt = is_string($row)
             ? $row
             : 'You are an assistant that analyzes meeting transcripts and returns strict JSON matching the meeting-analysis schema.';
-        
+
         // TODO: Revert once testing is sufficient - remove temporary logging
         Log::info('[TEMP][LLMAdapter] System prompt retrieved', [
             'from_database' => is_string($row),

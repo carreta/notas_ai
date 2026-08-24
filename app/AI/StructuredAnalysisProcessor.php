@@ -77,6 +77,7 @@ final class StructuredAnalysisProcessor
 
         // TODO: Revert once testing is sufficient - remove temporary logging
         $this->log('[TEMP][StructuredAnalysisProcessor] process() completed successfully');
+
         // original: return $this->normalizer->normalize($validated);
         return $normalized;
     }

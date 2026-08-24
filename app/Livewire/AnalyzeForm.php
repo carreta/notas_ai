@@ -287,8 +287,8 @@ class AnalyzeForm extends Component
             Log::info('[TEMP][AnalyzeForm] AnalysisOrchestrator completed', [
                 'success' => $outcome->success,
                 'category' => $outcome->category ?? null,
-                'user_message' => $outcome->userMessage ?? null,
-                'analysis_id' => $outcome->analysis?->id ?? null,
+                'user_message' => $outcome->userMessage,
+                'analysis_id' => $outcome->analysis?->id,
             ]);
         } catch (\Throwable $exception) {
             // TODO: Revert once testing is sufficient - remove temporary logging
