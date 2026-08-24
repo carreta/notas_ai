@@ -247,8 +247,6 @@ class AnalyzeForm extends Component
             'stage' => $this->stage,
         ]);
 
-        $this->setStage('analyzing'); // 50%
-
         $meeting = Meeting::find($this->meetingId);
 
         if ($meeting === null) {
@@ -366,6 +364,15 @@ class AnalyzeForm extends Component
         }
 
         redirect()->route('history');
+    }
+
+    public function retryAnalyze(): void
+    {
+        $this->setStage('analyzing'); // 50%
+        $this->resetErrorBag();
+        $this->lastErrorWasAi = false;
+        $this->lastErrorCategory = null;
+        $this->dispatch('retry');
     }
 
     /**

@@ -288,7 +288,7 @@
                     wire:model.live="reAnalyzeModel"
                     id="re-analyze-model-select"
                     class="w-full bg-surface-container-low border border-outline-variant rounded px-md py-sm text-body-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-                    @disabled($reAnalyzeStage !== 'idle')
+                    @disabled($reAnalyzeStage !== 'idle' && $reAnalyzeStage !== 'error')
                     x-ref="modelSelect"
                 >
                     @foreach($models as $key => $modelConfig)

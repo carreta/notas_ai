@@ -48,8 +48,6 @@ final class AnalysisOrchestrator
             'meeting_status_before' => $meeting->status,
             'provider_param' => $provider,
             'model_key_param' => $modelKey,
-            'meeting_provider' => $meeting->provider,
-            'meeting_model' => $meeting->model,
             'config_ai_provider' => config('ai.provider'),
             'config_ai_model' => config('ai.model'),
         ]);
@@ -118,8 +116,8 @@ final class AnalysisOrchestrator
         }
 
         $metadata = new AnalysisMetadata(
-            provider: $provider ?? $meeting->provider ?? (string) config('ai.provider', 'openai'),
-            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-5.6-luna'),
+            provider: $provider ?? (string) config('ai.provider', 'openai'),
+            model: $modelKey ?? (string) config('ai.model', 'gpt-5.6-luna'),
             schemaVersion: (string) config('ai.schema_version', 'meeting-analysis-v1'),
             startedAt: $startedAt,
             completedAt: new DateTimeImmutable,
@@ -243,8 +241,8 @@ final class AnalysisOrchestrator
         }
 
         $metadata = new AnalysisMetadata(
-            provider: $provider ?? $meeting->provider ?? (string) config('ai.provider', 'openai'),
-            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-5.6-luna'),
+            provider: $provider ?? (string) config('ai.provider', 'openai'),
+            model: $modelKey ?? (string) config('ai.model', 'gpt-5.6-luna'),
             schemaVersion: (string) config('ai.schema_version', 'meeting-analysis-v1'),
             startedAt: $startedAt,
             completedAt: new DateTimeImmutable,
@@ -301,8 +299,8 @@ final class AnalysisOrchestrator
         ]);
 
         $metadata = new AnalysisMetadata(
-            provider: $provider ?? $meeting->provider ?? (string) config('ai.provider', 'openai'),
-            model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-5.6-luna'),
+            provider: $provider ?? (string) config('ai.provider', 'openai'),
+            model: $modelKey ?? (string) config('ai.model', 'gpt-5.6-luna'),
             schemaVersion: (string) config('ai.schema_version', 'meeting-analysis-v1'),
             startedAt: $startedAt,
             completedAt: new DateTimeImmutable,
@@ -338,16 +336,14 @@ final class AnalysisOrchestrator
         Log::info('[TEMP][AnalysisOrchestrator] requestFor() resolving config', [
             'provider_param' => $provider,
             'model_key_param' => $modelKey,
-            'meeting_provider' => $meeting->provider,
-            'meeting_model' => $meeting->model,
         ]);
 
         // Resolve model key: from parameter, then meeting, then config default
-        $resolvedModelKey = $modelKey ?? $meeting->model ?? config('ai.provider', 'openai');
+        $resolvedModelKey = $modelKey ?? config('ai.provider', 'openai');
         $modelConfig = config("models.{$resolvedModelKey}") ?? [];
 
         // Resolve provider: from parameter, then meeting, then model config, then config default
-        $resolvedProvider = $provider ?? $meeting->provider ?? $modelConfig['provider'] ?? config('ai.provider', 'openai');
+        $resolvedProvider = $provider ?? $modelConfig['provider'] ?? config('ai.provider', 'openai');
         $providerConfig = config("ai.providers.{$resolvedProvider}") ?? [];
 
         // The model to send to the provider - use the model from the selected model config

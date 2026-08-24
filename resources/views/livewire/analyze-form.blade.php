@@ -90,6 +90,13 @@
             $wire.complete();
         }, 1000)
     "
+
+    {{-- Retry analysis after an AI error has occurred --}}
+    x-on:retry.window="
+        setTimeout(() => {
+            $wire.analyze();
+        }, 1000)
+    "  
 >
     @php
         $isProcessing = in_array($stage, [
@@ -257,8 +264,8 @@
             <button
                 type="submit"
                 wire:loading.attr="disabled"
-                @disabled($isProcessing)
-                class="bg-primary text-on-primary font-mono text-label-md px-xl py-sm rounded-lg hover:bg-primary-container transition-colors flex items-center gap-sm {{ $isProcessing ? 'opacity-50 cursor-not-allowed' : '' }}"
+                @disabled($isProcessing || $errors->any())
+                class="bg-primary text-on-primary font-mono text-label-md px-xl py-sm rounded-lg hover:bg-primary-container transition-colors flex items-center gap-sm {{ ($isProcessing || $errors->any()) ? 'opacity-50 cursor-not-allowed' : '' }}"
             >
                 <span class="material-symbols-outlined text-[18px]">
                     auto_awesome
@@ -307,7 +314,7 @@
                     @if($field === 'meeting_text' && $lastErrorWasAi && $stage === 'idle')
                         <div class="flex justify-end">
                             <button
-                                wire:click="analyze"
+                                wire:click="retryAnalyze"
                                 wire:loading.attr="disabled"
                                 class="bg-error text-on-error font-mono text-label-sm px-md py-xs rounded-lg hover:bg-error/90 transition-colors flex items-center gap-xs"
                             >
