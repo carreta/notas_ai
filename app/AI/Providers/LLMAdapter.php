@@ -37,7 +37,6 @@ use Throwable;
  */
 final class LLMAdapter implements AnalysisProvider
 {
-    public function analyze(AnalysisRequest $request): AnalysisProviderResult
     {
         // TODO: Revert once testing is sufficient - remove temporary logging
         Log::info('[TEMP][LLMAdapter] analyze() started', [
@@ -84,15 +83,16 @@ final class LLMAdapter implements AnalysisProvider
             ]);
             throw new AiConfigurationException('The AI provider API key is not configured.');
         }
-
+        
         $payload = [
             'model' => $model,
             'messages' => [
                 ['role' => 'system', 'content' => $this->systemPrompt()],
                 ['role' => 'user', 'content' => $this->buildUserPrompt($request)],
             ],
+            'temperature' => 0,
         ];
-
+        
         // Only add temperature if explicitly configured (not null)
         if ($temperature !== null) {
             $payload['temperature'] = $temperature;

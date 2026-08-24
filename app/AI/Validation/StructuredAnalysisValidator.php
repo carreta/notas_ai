@@ -47,6 +47,12 @@ final class StructuredAnalysisValidator
         // TODO: Revert once testing is sufficient - remove temporary logging
         $this->log('[TEMP][StructuredAnalysisValidator] open_questions array validated', ['count' => count($openQuestionsRaw)]);
 
+        \Log::info('data', [
+            'summary' => $summary,
+            'decisionsRaw' => $decisionsRaw,
+            'actionItemsRaw' => $actionItemsRaw,
+            'openQuestionsRaw' => $openQuestionsRaw,
+        ]);
         $decisions = [];
         // TODO: original:
         // foreach ($decisionsRaw as $index => $item) {
@@ -54,12 +60,12 @@ final class StructuredAnalysisValidator
         // }
         foreach ($decisionsRaw as $index => $item) {
             try {
-                $decisions[] = $this->validateDecision($item);
+            $decisions[] = $this->validateDecision($item);
             } catch (AiInvalidResponseException $e) {
                 // TODO: Revert once testing is sufficient - remove temporary logging
                 $this->log('[TEMP][StructuredAnalysisValidator] Decision validation failed', ['index' => $index, 'item' => $item]);
                 throw $e;
-            }
+        }
         }
         // TODO: Revert once testing is sufficient - remove temporary logging
         $this->log('[TEMP][StructuredAnalysisValidator] All decisions validated', ['count' => count($decisions)]);
@@ -71,12 +77,12 @@ final class StructuredAnalysisValidator
         // }
         foreach ($openQuestionsRaw as $index => $item) {
             try {
-                $openQuestions[] = $this->validateOpenQuestion($item);
+            $openQuestions[] = $this->validateOpenQuestion($item);
             } catch (AiInvalidResponseException $e) {
                 // TODO: Revert once testing is sufficient - remove temporary logging
                 $this->log('[TEMP][StructuredAnalysisValidator] Open question validation failed', ['index' => $index, 'item' => $item]);
                 throw $e;
-            }
+        }
         }
         // TODO: Revert once testing is sufficient - remove temporary logging
         $this->log('[TEMP][StructuredAnalysisValidator] All open questions validated', ['count' => count($openQuestions)]);
@@ -88,12 +94,12 @@ final class StructuredAnalysisValidator
         // }
         foreach ($actionItemsRaw as $index => $item) {
             try {
-                $actionItems[] = $this->validateActionItem($item);
+            $actionItems[] = $this->validateActionItem($item);
             } catch (AiInvalidResponseException $e) {
                 // TODO: Revert once testing is sufficient - remove temporary logging
                 $this->log('[TEMP][StructuredAnalysisValidator] Action item validation failed', ['index' => $index, 'item' => $item]);
                 throw $e;
-            }
+        }
         }
         // TODO: Revert once testing is sufficient - remove temporary logging
         $this->log('[TEMP][StructuredAnalysisValidator] All action items validated', ['count' => count($actionItems)]);

@@ -6,6 +6,7 @@ return [
         'model' => 'gpt-5.6-sol',
         'max_chars' => 50000,
         'max_tokens' => 20000,
+        'encoding' => 'cl100k_base',
         'provider' => 'openai',
     ],
 
@@ -14,6 +15,7 @@ return [
         'model' => 'gpt-5.6-terra',
         'max_chars' => 100000,
         'max_tokens' => 50000,
+        'encoding' => 'cl100k_base',
         'provider' => 'openai',
     ],
 
@@ -22,6 +24,7 @@ return [
         'model' => 'gpt-5.6-luna',
         'max_chars' => 200000,
         'max_tokens' => 100000,
+        'encoding' => 'o200k_base',
         'provider' => 'openai',
     ],
 

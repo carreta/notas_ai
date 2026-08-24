@@ -118,8 +118,10 @@
             filter_list
         </span>
 
-        Filter
-    </button>
+            Filter
+        </button>
+    </div>
+</header>
 
     {{-- Clear --}}
     @if(
@@ -346,7 +348,7 @@
 
 
                     {{-- Status --}}
-                    <td class="px-md py-md">
+                <td class="px-md py-md">
                         @include(
                             'partials.status-badge',
                             [
@@ -368,7 +370,7 @@
                             </span>
                         </span>
 
-                    </td>
+                </td>
 
                 </tr>
 
@@ -381,9 +383,9 @@
                         class="px-md py-xl text-center text-body-md font-sans text-on-surface-variant"
                     >
                         No meetings found.
-                    </td>
+                </td>
 
-                </tr>
+            </tr>
 
             @endforelse
 
