@@ -83,7 +83,7 @@ class AnalysisMetadataPersistenceTest extends TestCase
     {
         return new AnalysisMetadata(
             provider: $overrides['provider'] ?? 'openai',
-            model: $overrides['model'] ?? 'gpt-4o-mini',
+            model: $overrides['model'] ?? 'gpt-5.6-luna',
             schemaVersion: $overrides['schemaVersion'] ?? 'meeting-analysis-v1',
             startedAt: $overrides['startedAt'] ?? new \DateTimeImmutable('2026-08-19 10:00:00'),
             completedAt: $overrides['completedAt'] ?? new \DateTimeImmutable('2026-08-19 10:00:30'),
@@ -119,7 +119,7 @@ class AnalysisMetadataPersistenceTest extends TestCase
         $log = $this->rawLog($meeting);
         $metric = $this->rawMetric($meeting);
         $this->assertSame('openai', $log->provider);
-        $this->assertSame('gpt-4o-mini', $log->model);
+        $this->assertSame('gpt-5.6-luna', $log->model);
         $this->assertSame('meeting-analysis-v1', $log->prompt_version);
         $this->assertSame('2026-08-19 10:00:00', $log->started_at->format('Y-m-d H:i:s'));
         $this->assertSame('2026-08-19 10:00:30', $log->completed_at->format('Y-m-d H:i:s'));
@@ -236,7 +236,7 @@ class AnalysisMetadataPersistenceTest extends TestCase
         $meeting = $this->meeting();
         $this->service->persistWithMetadata($meeting, $this->analysisResult(), $this->metadata([
             'provider' => 'openai',
-            'model' => 'gpt-4o-mini',
+            'model' => 'gpt-5.6-luna',
         ]));
 
         $log = $this->rawLog($meeting);

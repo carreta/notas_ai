@@ -10,6 +10,7 @@ use App\Models\Analysis;
 use App\Models\AnalysisLog;
 use App\Models\Meeting;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log; // remove after logging is no longer needed
 
 /**
  * Persists a trusted AnalysisResult for a given Meeting.
@@ -35,13 +36,26 @@ final class AnalysisPersistenceService
 
     public function persist(Meeting $meeting, AnalysisResult $result): Analysis
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][AnalysisPersistenceService] persist() started', [
+            'meeting_id' => $meeting->id,
+        ]);
+
         return DB::transaction(function () use ($meeting, $result): Analysis {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Creating Analysis record (legacy)');
             $analysis = Analysis::create([
                 'meeting_id' => $meeting->id,
                 'result' => $this->serializer->toArray($result),
             ]);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Analysis created (legacy)', ['analysis_id' => $analysis->id]);
 
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Updating meeting status to COMPLETED (legacy)');
             $meeting->update(['status' => 'COMPLETED']);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Meeting status updated (legacy)');
 
             return $analysis;
         });
@@ -80,7 +94,22 @@ final class AnalysisPersistenceService
         AnalysisResult $result,
         AnalysisMetadata $metadata,
     ): Analysis {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][AnalysisPersistenceService] persistWithMetadata() started', [
+            'meeting_id' => $meeting->id,
+            'provider' => $metadata->provider,
+            'model' => $metadata->model,
+            'schema_version' => $metadata->schemaVersion,
+            'duration_ms' => $metadata->durationMs,
+            'failure_category' => $metadata->failureCategory,
+            'prompt_tokens' => $metadata->promptTokens,
+            'completion_tokens' => $metadata->completionTokens,
+            'total_tokens' => $metadata->totalTokens,
+        ]);
+
         return DB::transaction(function () use ($meeting, $result, $metadata): Analysis {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Creating AnalysisLog');
             $log = AnalysisLog::create([
                 'meeting_id' => $meeting->id,
                 'status' => $metadata->failureCategory !== null ? 'FAILED' : 'COMPLETED',
@@ -92,24 +121,108 @@ final class AnalysisPersistenceService
                 'started_at' => $metadata->startedAt,
                 'completed_at' => $metadata->completedAt,
             ]);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] AnalysisLog created', ['log_id' => $log->id]);
 
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Creating Analysis record');
             $analysis = Analysis::create([
                 'meeting_id' => $meeting->id,
                 'result' => $this->serializer->toArray($result),
                 'analysis_metadata' => $log->id,
             ]);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Analysis created', ['analysis_id' => $analysis->id]);
 
             if ($metadata->durationMs !== null) {
+                // TODO: Revert once testing is sufficient - remove temporary logging
+                $this->log('[TEMP][AnalysisPersistenceService] Creating AiMetric');
                 AiMetric::create([
                     'analysis_id' => $analysis->id,
-                    'prompt_tokens' => 0,
-                    'completion_tokens' => 0,
-                    'total_tokens' => 0,
+                    'prompt_tokens' => $metadata->promptTokens ?? 0,
+                    'completion_tokens' => $metadata->completionTokens ?? 0,
+                    'total_tokens' => $metadata->totalTokens ?? 0,
                     'duration_ms' => $metadata->durationMs,
                 ]);
+                // TODO: Revert once testing is sufficient - remove temporary logging
+                $this->log('[TEMP][AnalysisPersistenceService] AiMetric created');
             }
 
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Updating meeting status to COMPLETED');
             $meeting->update(['status' => 'COMPLETED']);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Meeting status updated');
+
+            return $analysis;
+        });
+    }
+
+    /**
+     * Update an existing Analysis record with a new result and metadata.
+     * Used for re-analysis where the meeting already has an analysis.
+     */
+    public function update(
+        Analysis $analysis,
+        AnalysisResult $result,
+        AnalysisMetadata $metadata,
+    ): Analysis {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][AnalysisPersistenceService] update() started', [
+            'analysis_id' => $analysis->id,
+            'meeting_id' => $analysis->meeting_id,
+            'provider' => $metadata->provider,
+            'model' => $metadata->model,
+            'failure_category' => $metadata->failureCategory,
+        ]);
+
+        return DB::transaction(function () use ($analysis, $result, $metadata): Analysis {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Creating AnalysisLog for update');
+            $log = AnalysisLog::create([
+                'meeting_id' => $analysis->meeting_id,
+                'status' => $metadata->failureCategory !== null ? 'FAILED' : 'COMPLETED',
+                'provider' => $metadata->provider,
+                'model' => $metadata->model,
+                'prompt_version' => $metadata->schemaVersion,
+                'error_category' => $metadata->failureCategory,
+                'error_message' => null,
+                'started_at' => $metadata->startedAt,
+                'completed_at' => $metadata->completedAt,
+            ]);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] AnalysisLog created', ['log_id' => $log->id]);
+
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Updating Analysis record');
+            $analysis->update([
+                'result' => $this->serializer->toArray($result),
+                'analysis_metadata' => $log->id,
+            ]);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Analysis updated');
+
+            if ($metadata->durationMs !== null) {
+                // TODO: Revert once testing is sufficient - remove temporary logging
+                $this->log('[TEMP][AnalysisPersistenceService] Updating/Creating AiMetric');
+                AiMetric::updateOrCreate(
+                    ['analysis_id' => $analysis->id],
+                    [
+                        'prompt_tokens' => $metadata->promptTokens ?? 0,
+                        'completion_tokens' => $metadata->completionTokens ?? 0,
+                        'total_tokens' => $metadata->totalTokens ?? 0,
+                        'duration_ms' => $metadata->durationMs,
+                    ]
+                );
+                // TODO: Revert once testing is sufficient - remove temporary logging
+                $this->log('[TEMP][AnalysisPersistenceService] AiMetric updated/created');
+            }
+
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Updating meeting status to COMPLETED');
+            $analysis->meeting->update(['status' => 'COMPLETED']);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Meeting status updated');
 
             return $analysis;
         });
@@ -128,8 +241,19 @@ final class AnalysisPersistenceService
      */
     public function recordFailure(Meeting $meeting, AnalysisMetadata $metadata): AnalysisLog
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][AnalysisPersistenceService] recordFailure() started', [
+            'meeting_id' => $meeting->id,
+            'provider' => $metadata->provider,
+            'model' => $metadata->model,
+            'failure_category' => $metadata->failureCategory,
+        ]);
+
         return DB::transaction(function () use ($meeting, $metadata): AnalysisLog {
-            return AnalysisLog::create([
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] Creating FAILED AnalysisLog');
+            // Original: return AnalysisLog::create([
+            $log = AnalysisLog::create([
                 'meeting_id' => $meeting->id,
                 'status' => 'FAILED',
                 'provider' => $metadata->provider,
@@ -140,6 +264,24 @@ final class AnalysisPersistenceService
                 'started_at' => $metadata->startedAt,
                 'completed_at' => $metadata->completedAt,
             ]);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][AnalysisPersistenceService] FAILED AnalysisLog created', ['log_id' => $log->id]);
+
+            return $log;
         });
+    }
+
+    /**
+     * Safe logging that works in both web and test contexts.
+     */
+    private function log(string $message, array $context = []): void
+    {
+        try {
+            if (class_exists(Log::class) && app()->bound('log')) {
+                Log::info($message, $context);
+            }
+        } catch (\Throwable) {
+            // Ignore logging failures in test contexts
+        }
     }
 }

@@ -3,14 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Meeting;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 
 // TODO: This is a temporary file for the purpose of comparing to view json data for meeting tables. It is not intended to be used in production and should be deleted after history page is implemented.
 class MeetingController extends Controller
 {
-    public function show(Meeting $meeting): JsonResponse
+    /**
+     * JSON API endpoint for meeting retrieval.
+     * Used by tests and API consumers.
+     */
+    public function show(Request $request, Meeting $meeting)
     {
+        $meeting->load('analysis');
+
         return response()->json([
             'success' => true,
             'data' => [

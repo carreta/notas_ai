@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Meeting extends Model
@@ -27,5 +28,10 @@ class Meeting extends Model
     public function analysis(): HasOne
     {
         return $this->hasOne(Analysis::class);
+    }
+
+    public function analysisLogs(): HasMany
+    {
+        return $this->hasMany(AnalysisLog::class);
     }
 }

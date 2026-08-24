@@ -3,7 +3,7 @@
 return [
     'chatgpt-sol' => [
         'label' => 'ChatGPT Sol',
-        'model' => 'gpt-4.1',
+        'model' => 'gpt-5.6-sol',
         'max_chars' => 50000,
         'max_tokens' => 20000,
         'encoding' => 'cl100k_base',
@@ -12,7 +12,7 @@ return [
 
     'chatgpt-terra' => [
         'label' => 'ChatGPT Terra',
-        'model' => 'gpt-4.1-mini',
+        'model' => 'gpt-5.6-terra',
         'max_chars' => 100000,
         'max_tokens' => 50000,
         'encoding' => 'cl100k_base',
@@ -21,7 +21,7 @@ return [
 
     'chatgpt-luna' => [
         'label' => 'ChatGPT Luna',
-        'model' => 'gpt-5',
+        'model' => 'gpt-5.6-luna',
         'max_chars' => 200000,
         'max_tokens' => 100000,
         'encoding' => 'o200k_base',
@@ -29,29 +29,32 @@ return [
     ],
 
     'qwen-3.5-9b' => [
-        'label' => 'Qwen 3.5 9B',
+        'label' => 'Local - Qwen 3.5 9B',
         'model' => 'qwen/qwen3.5-9b',
         'max_chars' => 32000,
         'max_tokens' => 8000,
         'encoding' => 'cl100k_base',
         'provider' => 'lmstudio',
+        'temperature' => 0,
     ],
 
-    'deepseek-r1-qwen3-8b' => [
-        'label' => 'DeepSeek R1 Qwen3 8B',
-        'model' => 'deepseek/deepseek-r1-0528-qwen3-8',
+    'Gemma 4 12B' => [
+        'label' => 'Local - Gemma 4 12B',
+        'model' => 'google/gemma-4-12b',
         'max_chars' => 32000,
         'max_tokens' => 8000,
         'encoding' => 'cl100k_base',
         'provider' => 'lmstudio',
+        'temperature' => 0,
     ],
 
-    'gemini-3.6-flash' => [
-        'label' => 'Gemini 3.6 Flash',
-        'model' => 'gemini-3.6-flash',
+    'gemini-3.7-flash' => [
+        'label' => 'Gemini 3.7 Flash',
+        'model' => 'gemini-3.7-flash',
         'max_chars' => 200000,
         'max_tokens' => 8192,
         'encoding' => 'cl100k_base',
         'provider' => 'google',
+        'temperature' => null,
     ],
 ];

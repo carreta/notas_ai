@@ -22,7 +22,7 @@ return [
         'openai' => [
             'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
             'api_key' => env('OPENAI_API_KEY', ''),
-            'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+            'model' => env('OPENAI_MODEL', 'gpt-5.6-luna'),
             'timeout' => (int) env('OPENAI_TIMEOUT', 120),
         ],
         'lmstudio' => [
@@ -34,7 +34,7 @@ return [
         'google' => [
             'base_url' => env('GOOGLE_AI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta/openai'),
             'api_key' => env('GOOGLE_AI_API_KEY', ''),
-            'model' => env('GOOGLE_AI_MODEL', 'gemini-3.6-flash'),
+            'model' => env('GOOGLE_AI_MODEL', 'gemini-3.7-flash'),
             'timeout' => (int) env('GOOGLE_AI_TIMEOUT', 120),
         ],
     ],

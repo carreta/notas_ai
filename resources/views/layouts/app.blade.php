@@ -15,5 +15,6 @@
     </main>
     @include('partials.footer')
     @livewireScripts
+    @stack('scripts')
 </body>
 </html>

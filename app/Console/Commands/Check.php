@@ -15,15 +15,18 @@ class Check extends Command
 
     private int $totalDuration = 0;
 
-    // Test environment variables matching phpunit.xml
+    // Test environment variables matching phpunit.xml (PostgreSQL for CI parity)
     private array $testEnv = [
         'APP_ENV' => 'testing',
         'APP_MAINTENANCE_DRIVER' => 'file',
         'BCRYPT_ROUNDS' => '4',
         'BROADCAST_CONNECTION' => 'null',
         'CACHE_STORE' => 'array',
-        'DB_CONNECTION' => 'sqlite',
-        'DB_DATABASE' => ':memory:',
+        'DB_CONNECTION' => 'pgsql',
+        'DB_HOST' => '127.0.0.1',
+        'DB_PORT' => '5432',
+        'DB_DATABASE' => 'notas_ia_test',
+        'DB_USERNAME' => 'postgres',
         'MAIL_MAILER' => 'array',
         'QUEUE_CONNECTION' => 'sync',
         'SESSION_DRIVER' => 'array',
@@ -112,8 +115,15 @@ class Check extends Command
             // Clear config cache first to ensure fresh state
             Process::run('php artisan config:clear');
 
-            // Run tests with explicit test environment variables
-            $result = Process::env($this->testEnv)->run('composer test');
+            // Run migrations for the test database (PostgreSQL, matching phpunit.xml)
+            Process::env($this->testEnv)->run('php artisan migrate:fresh --force');
+
+            // Run tests with the PostgreSQL database
+            // The full suite can exceed Laravel Process's
+            // default 60-second timeout on a local machine.
+            $result = Process::timeout(120)
+                ->env($this->testEnv)
+                ->run('composer test');
             $output = $result->output();
             $tests = 0;
             $assertions = 0;

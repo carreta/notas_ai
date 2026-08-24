@@ -242,10 +242,10 @@ class StructuredAnalysisValidatorTest extends TestCase
 
     // ---------- INVALID DECISIONS ----------
 
-    public function test_decision_item_not_object_throws(): void
+    public function test_decision_item_invalid_format_throws(): void
     {
         $data = $this->validBase();
-        $data['decisions'] = ['not-an-object'];
+        $data['decisions'] = [['wrong' => 'key']];
 
         $this->assertInvalid($data);
     }

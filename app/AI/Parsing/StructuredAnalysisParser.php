@@ -3,6 +3,7 @@
 namespace App\AI\Parsing;
 
 use App\AI\Exceptions\AiInvalidResponseException;
+use Illuminate\Support\Facades\Log; // remove after logging is no longer needed
 use JsonException;
 
 final class StructuredAnalysisParser
@@ -23,6 +24,12 @@ final class StructuredAnalysisParser
      */
     public function parse(string $content): array
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][StructuredAnalysisParser] parse() started', [
+            'content_length' => mb_strlen($content),
+            'content_preview' => substr($content, 0, 300),
+        ]);
+
         // Strip UTF-8 BOM if present (some models include it)
         $content = ltrim($content, "\xEF\xBB\xBF");
 
@@ -36,25 +43,47 @@ final class StructuredAnalysisParser
         $content = trim($content);
 
         if ($content === '') {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][StructuredAnalysisParser] Content is empty after cleaning');
             throw new AiInvalidResponseException;
         }
 
         // First, try to parse as-is (clean JSON response)
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][StructuredAnalysisParser] Trying to parse as clean JSON');
         $decoded = $this->tryParseJson($content);
         if ($decoded !== null) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][StructuredAnalysisParser] Clean JSON parse successful');
+
             return $decoded;
         }
+
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][StructuredAnalysisParser] Clean JSON parse failed, trying to extract JSON object');
 
         // If that fails, try to extract a JSON object from the content
         // This handles models that include reasoning text before/after JSON
         $extracted = $this->extractJsonObject($content);
         if ($extracted !== null) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][StructuredAnalysisParser] JSON object extracted, attempting parse');
             $decoded = $this->tryParseJson($extracted);
             if ($decoded !== null) {
+                // TODO: Revert once testing is sufficient - remove temporary logging
+                $this->log('[TEMP][StructuredAnalysisParser] Extracted JSON parse successful');
+
                 return $decoded;
             }
+            // TODO: Remove once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][StructuredAnalysisParser] Extracted JSON parse failed');
+        } else {
+            $this->log('[TEMP][StructuredAnalysisParser] No JSON object found in content');
+            // TODO: End of remove
         }
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][StructuredAnalysisParser] All parsing attempts failed');
         throw new AiInvalidResponseException;
     }
 
@@ -67,11 +96,23 @@ final class StructuredAnalysisParser
     {
         try {
             $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
+        } catch (JsonException $e) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][StructuredAnalysisParser] tryParseJson: JSON decode failed', [
+                'message' => $e->getMessage(),
+                'json_preview' => substr($json, 0, 200),
+            ]);
+
             return null;
         }
 
         if (! is_array($decoded) || array_is_list($decoded)) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            $this->log('[TEMP][StructuredAnalysisParser] tryParseJson: decoded is not an object', [
+                'type' => gettype($decoded),
+                'is_list' => is_array($decoded) ? array_is_list($decoded) : 'N/A',
+            ]);
+
             return null;
         }
 
@@ -105,6 +146,13 @@ final class StructuredAnalysisParser
                         // Found a complete {...} block
                         $candidate = substr($text, $start, $i - $start + 1);
                         if ($this->tryParseJson($candidate) !== null) {
+                            // TODO: Revert once testing is sufficient - remove temporary logging
+                            $this->log('[TEMP][StructuredAnalysisParser] extractJsonObject: found valid JSON object', [
+                                'start' => $start,
+                                'end' => $i,
+                                'length' => $i - $start + 1,
+                            ]);
+
                             return $candidate;
                         }
                         // Not valid JSON, continue searching
@@ -114,6 +162,23 @@ final class StructuredAnalysisParser
             }
         }
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][StructuredAnalysisParser] extractJsonObject: no valid JSON object found');
+
         return null;
+    }
+
+    /**
+     * Safe logging that works in both web and test contexts.
+     */
+    private function log(string $message, array $context = []): void
+    {
+        try {
+            if (class_exists(Log::class) && app()->bound('log')) {
+                Log::info($message, $context);
+            }
+        } catch (\Throwable) {
+            // Ignore logging failures in test contexts
+        }
     }
 }

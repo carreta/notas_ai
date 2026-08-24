@@ -30,11 +30,18 @@ final class FakeAnalysisProvider implements AnalysisProvider
         $this->outcome = $outcome;
     }
 
-    public function analyze(AnalysisRequest $request): string
+    public function analyze(AnalysisRequest $request): AnalysisProviderResult
     {
         return match ($this->outcome) {
-            'valid' => self::validRawResponse(),
-            'invalid_response' => '{"summary": 123}',
+            'valid' => new AnalysisProviderResult(
+                content: self::validRawResponse(),
+                promptTokens: 100,
+                completionTokens: 50,
+                totalTokens: 150,
+            ),
+            'invalid_response' => new AnalysisProviderResult(
+                content: '{"summary": 123}',
+            ),
             'config' => throw new AiConfigurationException('fake configuration failure'),
             'dependency' => throw new AiDependencyException('fake dependency failure'),
             'timeout' => throw new AiTimeoutException('fake timeout failure'),

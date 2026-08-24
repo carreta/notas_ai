@@ -33,7 +33,7 @@ class AnalysisOrchestratorTest extends TestCase
 
         config([
             'ai.provider' => 'openai',
-            'ai.model' => 'gpt-4o-mini',
+            'ai.model' => 'gpt-5.6-luna',
             'ai.schema_version' => 'meeting-analysis-v1',
         ]);
     }
@@ -87,7 +87,7 @@ class AnalysisOrchestratorTest extends TestCase
         $this->assertSame('COMPLETED', $log->status);
         $this->assertNull($log->error_category);
         $this->assertSame('openai', $log->provider);
-        $this->assertSame('gpt-4o-mini', $log->model);
+        $this->assertSame('gpt-5.6-luna', $log->model);
         $this->assertSame('meeting-analysis-v1', $log->prompt_version);
 
         $analysis = Analysis::first();

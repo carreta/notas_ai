@@ -11,16 +11,16 @@ use App\AI\Exceptions\AiProviderException;
  *
  * The application depends only on this contract. Provider SDK request/response
  * structures must never leak through it: {@see analyze()} returns the raw,
- * provider-independent analysis content (a JSON string) for the FR-004
- * pipeline to validate, and raises only application-owned exceptions on failure.
+ * provider-independent analysis content plus optional token usage for the
+ * FR-004 pipeline to validate, and raises only application-owned exceptions on failure.
  */
 interface AnalysisProvider
 {
     /**
-     * Analyze a meeting transcript and return the raw analysis content.
+     * Analyze a meeting transcript and return the analysis result with optional token usage.
      *
      * @throws AiProviderException
      * @throws AiInvalidResponseException
      */
-    public function analyze(AnalysisRequest $request): string;
+    public function analyze(AnalysisRequest $request): AnalysisProviderResult;
 }
