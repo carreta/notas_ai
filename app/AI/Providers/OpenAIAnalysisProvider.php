@@ -30,6 +30,7 @@ use Throwable;
  *
  * No OpenAI SDK type leaves this adapter.
  */
+// Remove this file and related test, since it is actually not used in the current implementation.
 final class OpenAIAnalysisProvider implements AnalysisProvider
 {
     public function __construct(

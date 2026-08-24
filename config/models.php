@@ -32,6 +32,7 @@ return [
         'max_tokens' => 8000,
         'encoding' => 'cl100k_base',
         'provider' => 'lmstudio',
+        'temperature' => 0,
     ],
 
     'Gemma 4 12B' => [
@@ -41,6 +42,7 @@ return [
         'max_tokens' => 8000,
         'encoding' => 'cl100k_base',
         'provider' => 'lmstudio',
+        'temperature' => 0,
     ],
 
     'gemini-3.7-flash' => [
@@ -50,5 +52,6 @@ return [
         'max_tokens' => 8192,
         'encoding' => 'cl100k_base',
         'provider' => 'google',
+        'temperature' => null,
     ],
 ];

@@ -4,6 +4,7 @@ namespace App\AI\Normalization;
 
 use App\AI\DTO\ActionItem;
 use App\AI\DTO\AnalysisResult;
+use Illuminate\Support\Facades\Log;
 
 final class StructuredAnalysisNormalizer
 {
@@ -18,6 +19,14 @@ final class StructuredAnalysisNormalizer
      */
     public function normalize(AnalysisResult $result): AnalysisResult
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][StructuredAnalysisNormalizer] normalize() started', [
+            'summary_length' => mb_strlen($result->summary),
+            'decisions_count' => count($result->decisions),
+            'action_items_count' => count($result->actionItems),
+            'open_questions_count' => count($result->openQuestions),
+        ]);
+
         $actionItems = [];
 
         foreach ($result->actionItems as $item) {
@@ -32,11 +41,36 @@ final class StructuredAnalysisNormalizer
             );
         }
 
-        return new AnalysisResult(
+        // Original: return new AnalysisResult(
+        $normalized = new AnalysisResult(
             $result->summary,
             $result->decisions,
             $actionItems,
             $result->openQuestions,
         );
+
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $this->log('[TEMP][StructuredAnalysisNormalizer] normalize() completed', [
+            'summary_length' => mb_strlen($normalized->summary),
+            'decisions_count' => count($normalized->decisions),
+            'action_items_count' => count($normalized->actionItems),
+            'open_questions_count' => count($normalized->openQuestions),
+        ]);
+
+        return $normalized;
+    }
+
+    /**
+     * Safe logging that works in both web and test contexts.
+     */
+    private function log(string $message, array $context = []): void
+    {
+        try {
+            if (class_exists(Log::class) && app()->bound('log')) {
+                Log::info($message, $context);
+            }
+        } catch (\Throwable) {
+            // Ignore logging failures in test contexts
+        }
     }
 }

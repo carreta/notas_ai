@@ -18,7 +18,7 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Log; // Remove after logging is no longer needed
 use Throwable;
 
 /**
@@ -39,6 +39,15 @@ final class LLMAdapter implements AnalysisProvider
 {
     public function analyze(AnalysisRequest $request): string
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][LLMAdapter] analyze() started', [
+            'request_provider' => $request->provider,
+            'request_model' => $request->model,
+            'request_model_key' => $request->modelKey,
+            'request_schema_version' => $request->schemaVersion,
+            'content_length' => mb_strlen($request->content),
+        ]);
+
         // Resolve provider config at RUNTIME from the request's provider/modelKey
         // This allows per-request provider selection (user chooses model in UI).
         $provider = $request->provider ?? Config::get('ai.provider', 'openai');
@@ -51,8 +60,28 @@ final class LLMAdapter implements AnalysisProvider
         $apiKey = $providerConfig['api_key'] ?? Config::get('ai.providers.openai.api_key', '');
         $model = $modelConfig['model'] ?? $providerConfig['model'] ?? Config::get('ai.model', 'gpt-5.6-luna');
         $timeout = (int) ($providerConfig['timeout'] ?? Config::get('ai.timeout', 120));
+        
+        // Read temperature from model config (optional, null = omit from request)
+        $temperature = $modelConfig['temperature'] ?? $providerConfig['temperature'] ?? null;
+
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][LLMAdapter] Resolved configuration', [
+            'provider' => $provider,
+            'model_key' => $modelKey,
+            'model_config' => $modelConfig,
+            'base_url' => $baseUrl,
+            'api_key_present' => !empty($apiKey),
+            'api_key_length' => mb_strlen($apiKey),
+            'model' => $model,
+            'timeout' => $timeout,
+            'temperature' => $temperature,
+        ]);
 
         if ($apiKey === '') {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][LLMAdapter] API key is empty', [
+                'provider' => $provider,
+            ]);
             throw new AiConfigurationException('The AI provider API key is not configured.');
         }
 
@@ -62,8 +91,20 @@ final class LLMAdapter implements AnalysisProvider
                 ['role' => 'system', 'content' => $this->systemPrompt()],
                 ['role' => 'user', 'content' => $this->buildUserPrompt($request)],
             ],
-            'temperature' => 0,
         ];
+
+        // Only add temperature if explicitly configured (not null)
+        if ($temperature !== null) {
+            $payload['temperature'] = $temperature;
+        }
+
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][LLMAdapter] Request payload built', [
+            'model' => $payload['model'],
+            'system_prompt_length' => mb_strlen($payload['messages'][0]['content']),
+            'user_prompt_length' => mb_strlen($payload['messages'][1]['content']),
+            'temperature' => $payload['temperature'] ?? 'not_set',
+        ]);
 
         try {
             // Extend PHP max execution time to cover the HTTP timeout + buffer
@@ -71,9 +112,19 @@ final class LLMAdapter implements AnalysisProvider
             // when local models take longer than PHP's default limit.
 
             @set_time_limit($timeout + 30);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][LLMAdapter] Making HTTP request', [
+                'url' => $baseUrl . '/chat/completions',
+                'timeout' => $timeout,
+            ]);
             $response = Http::withToken($apiKey)
                 ->timeout($timeout)
                 ->post($baseUrl.'/chat/completions', $payload);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][LLMAdapter] HTTP request completed', [
+                'status' => $response->status(),
+                'successful' => $response->successful(),
+            ]);
         } catch (ConnectionException|RequestException $e) {
             $this->logTransportFailure($provider, $model, $baseUrl, $e);
 
@@ -81,35 +132,73 @@ final class LLMAdapter implements AnalysisProvider
             // a ConnectionException whose previous exception is the original
             // Guzzle exception. Inspect it to classify timeouts vs dependencies.
             $previous = $e->getPrevious();
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::warning('[TEMP][LLMAdapter] ConnectionException/RequestException caught', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'previous_exception' => $previous ? $previous::class : null,
+                'previous_message' => $previous ? $previous->getMessage() : null,
+            ]);
             if ($this->isTimeout($previous)) {
+                // TODO: Revert once testing is sufficient - remove temporary logging
+                Log::error('[TEMP][LLMAdapter] Classified as timeout');
                 throw new AiTimeoutException('The AI provider request timed out.', $e);
             }
 
             if ($previous instanceof ConnectException) {
+                // TODO: Revert once testing is sufficient - remove temporary logging
+                Log::error('[TEMP][LLMAdapter] Classified as connection failure (ConnectException)');
                 throw new AiDependencyException('The AI provider could not be reached.', $e);
             }
 
             // Other transport/HTTP failures: the AI service is unreachable.
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][LLMAdapter] Classified as dependency error');
             throw new AiDependencyException('The AI provider could not be reached.', $e);
         } catch (TransferException $e) {
             $this->logTransportFailure($provider, $model, $baseUrl, $e);
 
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::warning('[TEMP][LLMAdapter] TransferException caught', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
             if ($this->isTimeout($e)) {
+                // TODO: Revert once testing is sufficient - remove temporary logging
+                Log::error('[TEMP][LLMAdapter] Classified as timeout');
                 throw new AiTimeoutException('The AI provider request timed out.', $e);
             }
 
             if ($e instanceof ConnectException) {
+                // TODO: Revert once testing is sufficient - remove temporary logging
+                Log::error('[TEMP][LLMAdapter] Classified as connection failure (ConnectException)');
                 throw new AiDependencyException('The AI provider could not be reached.', $e);
             }
 
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][LLMAdapter] Classified as dependency error');
             throw new AiDependencyException('The AI provider could not be reached.', $e);
         } catch (Throwable $e) {
             $this->logTransportFailure($provider, $model, $baseUrl, $e);
+
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][LLMAdapter] Unexpected Throwable caught', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
             throw new AiDependencyException('The AI provider could not be reached.', $e);
         }
 
         $status = $response->status();
+
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][LLMAdapter] Response received', [
+            'status' => $status,
+            'successful' => $response->successful(),
+            'headers' => $response->headers(),
+        ]);
 
         if (! $response->successful()) {
             $error = $response->json('error');
@@ -120,29 +209,52 @@ final class LLMAdapter implements AnalysisProvider
                 $status,
                 is_array($error) ? $error : null,
             );
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::warning('[TEMP][LLMAdapter] Unsuccessful response', [
+                'status' => $status,
+                'error' => $error,
+            ]);
         }
 
         if ($status === 401 || $status === 403) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][LLMAdapter] Authentication failed (401/403)');
             throw new AiConfigurationException('The AI provider rejected the request credentials.');
         }
 
         if ($status === 429) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][LLMAdapter] Rate limit exceeded (429)');
             throw new AiRateLimitException('The AI provider rate limit was exceeded.');
         }
 
         if ($status >= 500) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][LLMAdapter] Server error (5xx)');
             throw new AiDependencyException('The AI provider returned a server error.');
         }
 
         if (! $response->successful()) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][LLMAdapter] Unexpected unsuccessful response');
             throw new AiDependencyException('The AI provider returned an unexpected response.');
         }
         $content = $response->json('choices.0.message.content');
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][LLMAdapter] Response content extracted', [
+            'content_length' => is_string($content) ? mb_strlen($content) : 0,
+            'content_preview' => is_string($content) ? substr($content, 0, 200) : 'null',
+        ]);
+
         if (! is_string($content) || $content === '') {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][LLMAdapter] Empty or invalid content from provider');
             throw new AiInvalidResponseException('The AI provider returned an empty analysis.');
         }
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][LLMAdapter] analyze() completed successfully');
         return $content;
     }
 
@@ -193,15 +305,26 @@ final class LLMAdapter implements AnalysisProvider
 
     private function systemPrompt(): string
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][LLMAdapter] Fetching system prompt from database');
         /** @var mixed $row */
         $row = DB::table('prompt_templates')
             ->where('is_active', true)
             ->orderByDesc('created_at')
             ->value('system_prompt');
 
-        return is_string($row)
+        // original: return is_string($row)
+        $prompt = is_string($row)
             ? $row
             : 'You are an assistant that analyzes meeting transcripts and returns strict JSON matching the meeting-analysis schema.';
+        
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][LLMAdapter] System prompt retrieved', [
+            'from_database' => is_string($row),
+            'length' => mb_strlen($prompt),
+        ]);
+
+        return $prompt;
     }
 
     private function buildUserPrompt(AnalysisRequest $request): string
@@ -212,6 +335,13 @@ final class LLMAdapter implements AnalysisProvider
         if ($request->referenceDate !== null) {
             $prompt .= "\n\nMeeting date: ".$request->referenceDate;
         }
+
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][LLMAdapter] User prompt built', [
+            'content_length' => mb_strlen($request->content),
+            'reference_date' => $request->referenceDate,
+            'total_length' => mb_strlen($prompt),
+        ]);
 
         return $prompt;
     }

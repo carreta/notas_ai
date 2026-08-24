@@ -6,6 +6,7 @@ use App\AI\AnalysisOrchestrator;
 use App\AI\AnalysisOutcome;
 use App\Models\Meeting;
 use App\Validation\HasMeetingValidation;
+use Illuminate\Support\Facades\Log; // TODO: Remove after logging is no longer needed
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -100,6 +101,15 @@ class AnalyzeForm extends Component
     // 3. Successful validation: stage remains at validating, Alpine waits one second, Alpine calls save()
     public function submit(): void
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] submit() called', [
+            'meeting_text_length' => mb_strlen($this->meeting_text),
+            'model' => $this->model,
+            'meeting_title' => $this->meeting_title,
+            'meeting_date' => $this->meeting_date,
+            'stage' => $this->stage,
+        ]);
+
         $this->setStage('validating');
 
         // Run the full validation pipeline
@@ -108,13 +118,26 @@ class AnalyzeForm extends Component
 
     public function validation(): void
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] validation() started', [
+            'meeting_text_length' => mb_strlen($this->meeting_text),
+            'model' => $this->model,
+            'stage' => $this->stage,
+        ]);
+
         // precheck, required fields and character limits.
         try {
             $this->validate(
                 $this->preValidationRules(),
                 $this->messages()
             );
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalyzeForm] pre-validation passed');
         } catch (ValidationException $exception) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::warning('[TEMP][AnalyzeForm] pre-validation failed', [
+                'errors' => $exception->errors(),
+            ]);
             $this->setStage('idle');
 
             throw $exception;
@@ -123,7 +146,13 @@ class AnalyzeForm extends Component
         // token analysis
         try {
             $this->validateTokenLimit();
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalyzeForm] token limit validation passed');
         } catch (ValidationException $exception) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::warning('[TEMP][AnalyzeForm] token limit validation failed', [
+                'errors' => $exception->errors(),
+            ]);
             $this->setStage('idle');
 
             throw $exception;
@@ -135,9 +164,15 @@ class AnalyzeForm extends Component
                 $this->rules($this->models),
                 $this->messages()
             );
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalyzeForm] full validation passed');
         } catch (ValidationException $exception) {
             // Something such as SafeText, token validation, date validation, etc. failed.
             // Cancel the processing stage and return to idle.
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::warning('[TEMP][AnalyzeForm] full validation failed', [
+                'errors' => $exception->errors(),
+            ]);
             $this->setStage('idle');
 
             throw $exception;
@@ -149,10 +184,19 @@ class AnalyzeForm extends Component
         // The Blade/Alpine listener waits 1 second before calling $wire.save().
         $this->setStage('saving'); // 25%
         $this->dispatch('validation-passed');
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] validation() completed successfully, dispatched validation-passed');
     }
 
     public function save(): void
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] save() started', [
+            'meeting_title' => $this->meeting_title,
+            'meeting_date' => $this->meeting_date,
+            'meeting_text_length' => mb_strlen($this->meeting_text),
+        ]);
+
         try {
             $meeting = Meeting::create([
                 'title' => $this->meeting_title,
@@ -162,7 +206,18 @@ class AnalyzeForm extends Component
             ]);
 
             $this->meetingId = $meeting->id;
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalyzeForm] Meeting created successfully', [
+                'meeting_id' => $meeting->id,
+            ]);
         } catch (\Throwable $exception) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalyzeForm] Failed to create meeting', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+
             $this->addError(
                 'meeting_text',
                 'The meeting could not be saved. Please try again.'
@@ -179,30 +234,71 @@ class AnalyzeForm extends Component
         // $wire.analyze() which performs the synchronous analysis.
         $this->setStage('analyzing'); // 50%
         $this->dispatch('save-passed');
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] save() completed successfully, dispatched save-passed');
     }
 
     public function analyze(): void
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] analyze() started', [
+            'meeting_id' => $this->meetingId,
+            'model' => $this->model,
+            'stage' => $this->stage,
+        ]);
+
         $this->setStage('analyzing'); // 50%
 
         $meeting = Meeting::find($this->meetingId);
 
         if ($meeting === null) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalyzeForm] Meeting not found', [
+                'meeting_id' => $this->meetingId,
+            ]);
             $this->addError('meeting_text', 'The meeting could not be found.');
             $this->setStage('idle');
 
             return;
         }
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] Meeting found', [
+            'meeting_id' => $meeting->id,
+            'meeting_status' => $meeting->status,
+            'meeting_title' => $meeting->title,
+        ]);
+
         // Resolve model/provider from the component's current selection
         $selectedModelConfig = $this->models[$this->model] ?? [];
         $provider = $selectedModelConfig['provider'] ?? config('ai.provider', 'openai');
         $modelKey = $this->model;
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] Resolved provider and model', [
+            'provider' => $provider,
+            'model_key' => $modelKey,
+            'model_config' => $selectedModelConfig,
+            'ai_provider_config' => config('ai.provider'),
+        ]);
+
         try {
             /** @var AnalysisOutcome $outcome */
             $outcome = app(AnalysisOrchestrator::class)->analyze($meeting, $provider, $modelKey);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalyzeForm] AnalysisOrchestrator completed', [
+                'success' => $outcome->success,
+                'category' => $outcome->category ?? null,
+                'user_message' => $outcome->userMessage ?? null,
+                'analysis_id' => $outcome->analysis?->id ?? null,
+            ]);
         } catch (\Throwable $exception) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalyzeForm] AnalysisOrchestrator threw exception', [
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+                'trace' => $exception->getTraceAsString(),
+            ]);
             report($exception);
 
             $this->addError(
@@ -217,6 +313,11 @@ class AnalyzeForm extends Component
         }
 
         if (! $outcome->success) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::warning('[TEMP][AnalyzeForm] Analysis failed', [
+                'category' => $outcome->category,
+                'user_message' => $outcome->userMessage,
+            ]);
             $this->addError('meeting_text', $outcome->userMessage);
             $this->lastErrorWasAi = true;
             $this->lastErrorCategory = $outcome->category;
@@ -227,23 +328,36 @@ class AnalyzeForm extends Component
 
         // Store the analysis ID for the complete() redirect
         $this->analysisId = $outcome->analysis?->id;
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] Analysis successful', [
+            'analysis_id' => $this->analysisId,
+        ]);
 
         $this->setStage('storing'); // 75%
         $this->dispatch('analyze-passed');
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] analyze() completed successfully, dispatched analyze-passed');
     }
 
     public function store(): void
     {
-        // TODO:
-        // Store the analysis result here.
-        // Might just be UI experience now, since AnalysisOrchestrator already saves the analysis to the database.
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] store() called', [
+            'analysis_id' => $this->analysisId,
+        ]);
 
         $this->setStage('completed'); // 100%
         $this->dispatch('store-passed');
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] store() completed, dispatched store-passed');
     }
 
     public function complete(): void
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalyzeForm] complete() called', [
+            'analysis_id' => $this->analysisId,
+        ]);
         if ($this->analysisId) {
             session()->flash('analysis_id', $this->analysisId);
             redirect()->route('history');

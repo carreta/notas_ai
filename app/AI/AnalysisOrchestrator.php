@@ -13,6 +13,7 @@ use App\Models\Analysis;
 use App\Models\Meeting;
 use Carbon\Carbon;
 use DateTimeImmutable;
+use Illuminate\Support\Facades\Log;
 use LogicException;
 use Throwable;
 
@@ -40,20 +41,74 @@ final class AnalysisOrchestrator
 
     public function analyze(Meeting $meeting, ?string $provider = null, ?string $modelKey = null): AnalysisOutcome
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalysisOrchestrator] analyze() started', [
+            'meeting_id' => $meeting->id,
+            'meeting_status_before' => $meeting->status,
+            'provider_param' => $provider,
+            'model_key_param' => $modelKey,
+            'meeting_provider' => $meeting->provider,
+            'meeting_model' => $meeting->model,
+            'config_ai_provider' => config('ai.provider'),
+            'config_ai_model' => config('ai.model'),
+        ]);
+
         $meeting->update(['status' => 'ANALYZING']);
 
         $startedAt = new DateTimeImmutable;
         $startedMicro = microtime(true);
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $request = $this->requestFor($meeting, $provider, $modelKey);
+        Log::info('[TEMP][AnalysisOrchestrator] AnalysisRequest built', [
+            'content_length' => mb_strlen($request->content),
+            'reference_date' => $request->referenceDate,
+            'model' => $request->model,
+            'schema_version' => $request->schemaVersion,
+            'provider' => $request->provider,
+            'model_key' => $request->modelKey,
+        ]);
+
         try {
-            $raw = $this->provider->analyze($this->requestFor($meeting, $provider, $modelKey));
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] Calling provider->analyze()', [
+                'provider_class' => get_class($this->provider),
+            ]);
+            // original: $raw = $this->provider->analyze($this->requestFor($meeting, $provider, $modelKey));
+            $raw = $this->provider->analyze($request);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] Provider returned raw response', [
+                'raw_length' => mb_strlen($raw),
+                'raw_preview' => substr($raw, 0, 500),
+            ]);
         } catch (Throwable $e) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalysisOrchestrator] Provider threw exception', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
         }
 
         try {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] Calling processor->process()');
             $result = $this->processor->process($raw);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] Processor completed successfully', [
+                'summary_length' => mb_strlen($result->summary),
+                'decisions_count' => count($result->decisions),
+                'action_items_count' => count($result->actionItems),
+                'open_questions_count' => count($result->openQuestions),
+            ]);
         } catch (Throwable $e) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalysisOrchestrator] Processor threw exception', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
         }
 
@@ -67,26 +122,61 @@ final class AnalysisOrchestrator
             failureCategory: null,
         );
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalysisOrchestrator] Metadata created', [
+            'provider' => $metadata->provider,
+            'model' => $metadata->model,
+            'schema_version' => $metadata->schemaVersion,
+            'duration_ms' => $metadata->durationMs,
+        ]);
+
         try {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] Calling persistence->persistWithMetadata()');
             $analysis = $this->persistence->persistWithMetadata($meeting, $result, $metadata);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] Persistence completed', [
+                'analysis_id' => $analysis->id,
+            ]);
         } catch (Throwable $e) {
             // Any failure while persisting the trusted result is, by definition,
             // a persistence/database failure -> PERSISTENCE_ERROR, regardless of
             // the underlying exception type (e.g. Eloquent model hook throwing).
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalysisOrchestrator] Persistence threw exception', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return $this->fail($meeting, $startedAt, $startedMicro, new AnalysisFailure(
                 FailureCategory::PERSISTENCE_ERROR,
                 'The analysis could not be saved.',
             ), $provider, $modelKey);
         }
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalysisOrchestrator] analyze() completed successfully', [
+            'analysis_id' => $analysis->id,
+            'duration_ms' => $metadata->durationMs,
+        ]);
+
         return new AnalysisOutcome(true, $analysis, null, '');
     }
 
     public function reAnalyze(Analysis $analysis, ?string $provider = null, ?string $modelKey = null): AnalysisOutcome
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalysisOrchestrator] reAnalyze() started', [
+            'analysis_id' => $analysis->id,
+            'provider_param' => $provider,
+            'model_key_param' => $modelKey,
+        ]);
+
         $meeting = $analysis->meeting;
 
         if (! $meeting instanceof Meeting) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalysisOrchestrator] reAnalyze: meeting not found');
             throw new LogicException('Analysis cannot be re-analyzed without its meeting.');
         }
 
@@ -95,15 +185,45 @@ final class AnalysisOrchestrator
         $startedAt = new DateTimeImmutable;
         $startedMicro = microtime(true);
 
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        $request = $this->requestFor($meeting, $provider, $modelKey);
+        Log::info('[TEMP][AnalysisOrchestrator] reAnalyze: AnalysisRequest built', [
+            'content_length' => mb_strlen($request->content),
+            'model' => $request->model,
+            'provider' => $request->provider,
+            'model_key' => $request->modelKey,
+        ]);
+
         try {
-            $raw = $this->provider->analyze($this->requestFor($meeting, $provider, $modelKey));
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] reAnalyze: Calling provider->analyze()');
+            // original: $raw = $this->provider->analyze($this->requestFor($meeting, $provider, $modelKey));
+            $raw = $this->provider->analyze($request);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] reAnalyze: Provider returned raw response', [
+                'raw_length' => mb_strlen($raw),
+            ]);
         } catch (Throwable $e) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalysisOrchestrator] reAnalyze: Provider threw exception', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
             return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
         }
 
         try {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] reAnalyze: Calling processor->process()');
             $result = $this->processor->process($raw);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] reAnalyze: Processor completed');
         } catch (Throwable $e) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalysisOrchestrator] reAnalyze: Processor threw exception', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
             return $this->fail($meeting, $startedAt, $startedMicro, AnalysisFailureMapper::map($e), $provider, $modelKey);
         }
 
@@ -118,13 +238,29 @@ final class AnalysisOrchestrator
         );
 
         try {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] reAnalyze: Calling persistence->update()');
             $analysis = $this->persistence->update($analysis, $result, $metadata);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] reAnalyze: Persistence completed', [
+                'analysis_id' => $analysis->id,
+            ]);
         } catch (Throwable $e) {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalysisOrchestrator] reAnalyze: Persistence threw exception', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
             return $this->fail($meeting, $startedAt, $startedMicro, new AnalysisFailure(
                 FailureCategory::PERSISTENCE_ERROR,
                 'The analysis could not be saved.',
             ), $provider, $modelKey);
         }
+
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalysisOrchestrator] reAnalyze() completed successfully', [
+            'analysis_id' => $analysis->id,
+        ]);
 
         return new AnalysisOutcome(true, $analysis, null, '');
     }
@@ -137,6 +273,15 @@ final class AnalysisOrchestrator
         ?string $provider = null,
         ?string $modelKey = null,
     ): AnalysisOutcome {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::warning('[TEMP][AnalysisOrchestrator] fail() called', [
+            'meeting_id' => $meeting->id,
+            'failure_category' => $failure->category,
+            'failure_user_message' => $failure->userMessage,
+            'provider_param' => $provider,
+            'model_key_param' => $modelKey,
+        ]);
+
         $metadata = new AnalysisMetadata(
             provider: $provider ?? $meeting->provider ?? (string) config('ai.provider', 'openai'),
             model: $modelKey ?? $meeting->model ?? (string) config('ai.model', 'gpt-5.6-luna'),
@@ -148,18 +293,34 @@ final class AnalysisOrchestrator
         );
 
         try {
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] fail: recording failure in persistence');
             $this->persistence->recordFailure($meeting, $metadata);
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::info('[TEMP][AnalysisOrchestrator] fail: failure recorded');
         } catch (Throwable) {
             // Best-effort: the Meeting state below is still corrected.
+            // TODO: Revert once testing is sufficient - remove temporary logging
+            Log::error('[TEMP][AnalysisOrchestrator] fail: failed to record failure');
         }
 
         $meeting->update(['status' => 'FAILED']);
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalysisOrchestrator] fail: meeting status set to FAILED');
 
         return new AnalysisOutcome(false, null, $failure->category, $failure->userMessage);
     }
 
     private function requestFor(Meeting $meeting, ?string $provider = null, ?string $modelKey = null): AnalysisRequest
     {
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalysisOrchestrator] requestFor() resolving config', [
+            'provider_param' => $provider,
+            'model_key_param' => $modelKey,
+            'meeting_provider' => $meeting->provider,
+            'meeting_model' => $meeting->model,
+        ]);
+
         // Resolve model key: from parameter, then meeting, then config default
         $resolvedModelKey = $modelKey ?? $meeting->model ?? config('ai.provider', 'openai');
         $modelConfig = config("models.{$resolvedModelKey}") ?? [];
@@ -171,6 +332,14 @@ final class AnalysisOrchestrator
         // The model to send to the provider - use the model from the selected model config
         // or the provider's default model
         $model = $modelConfig['model'] ?? $providerConfig['model'] ?? config('ai.model', 'gpt-5.6-luna');
+
+        // TODO: Revert once testing is sufficient - remove temporary logging
+        Log::info('[TEMP][AnalysisOrchestrator] requestFor() resolved', [
+            'resolved_model_key' => $resolvedModelKey,
+            'resolved_provider' => $resolvedProvider,
+            'model_config' => $modelConfig,
+            'final_model' => $model,
+        ]);
 
         return new AnalysisRequest(
             content: $meeting->raw_text ?? '',
