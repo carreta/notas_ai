@@ -40,7 +40,7 @@
             value="{{ $filters['search'] }}"
             placeholder="Search meetings..."
             autocomplete="off"
-            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest min-w-[200px]"
+            class="border border-outline-variant rounded px-md py-sm text-body-md font-sans text-on-surface bg-surface-container-lowest min-w-50"
         />
     </div>
 
@@ -118,10 +118,8 @@
             filter_list
         </span>
 
-            Filter
-        </button>
-    </div>
-</header>
+        Filter
+    </button>
 
     {{-- Clear --}}
     @if(
@@ -348,7 +346,7 @@
 
 
                     {{-- Status --}}
-                <td class="px-md py-md">
+                    <td class="px-md py-md">
                         @include(
                             'partials.status-badge',
                             [
@@ -370,7 +368,7 @@
                             </span>
                         </span>
 
-                </td>
+                    </td>
 
                 </tr>
 
@@ -383,9 +381,9 @@
                         class="px-md py-xl text-center text-body-md font-sans text-on-surface-variant"
                     >
                         No meetings found.
-                </td>
+                    </td>
 
-            </tr>
+                </tr>
 
             @endforelse
 

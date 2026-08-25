@@ -120,7 +120,6 @@ class HistoryController extends Controller
                 'sort' => $sort,
                 'dir' => $dir,
             ],
-        ];
 
             'statusOptions' => self::STATUS_OPTIONS,
         ]);
