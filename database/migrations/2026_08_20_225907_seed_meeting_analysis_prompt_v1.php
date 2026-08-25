@@ -13,10 +13,6 @@ return new class extends Migration
     {
         // Seed the meeting-analysis-v1 prompt template (TD-010, TD-011, TD-017)
         // This implements the application-owned prompt per ADR-001 (database-stored prompts).
-
-
-        //           "due_date_source": {"type": "string", "enum": ["EXPLICIT", "INFERRED", "UNKNOWN"]}
-
         $systemPrompt = <<<'PROMPT'
 You are an expert meeting analyst. Analyze the provided meeting transcript and return ONLY a valid JSON object matching the schema below. Do not include any explanation, markdown, or additional text.
 
