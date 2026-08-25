@@ -242,10 +242,16 @@ class AnalysisDetailModal extends Component
 
     private function handleReAnalyzeFailure(string $error, string $category): void
     {
-        // but keep the analysis row and logs intact
+        // A failed re-analysis attempt must NEVER erase or overwrite a
+        // previously successful Analysis. The previous result remains the
+        // meeting's valid analysis and must stay available for inspection.
+        //
+        // The orchestrator's failure path already:
+        //  - recorded a safe FAILED AnalysisLog (via recordFailure);
+        //  - set the Meeting status to FAILED.
+        // Here we simply re-read the (untouched) Analysis so the modal keeps
+        // showing the last good result, and surface a safe error to the user.
         if ($this->analysis) {
-            $this->analysis->setAttribute('result', []);
-            $this->analysis->save();
             $this->analysis->refresh();
         }
 

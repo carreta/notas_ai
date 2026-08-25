@@ -413,4 +413,212 @@ class AnalysisDetailModalTest extends TestCase
             ->assertSet('reAnalyzeErrorCategory', 'INTERNAL_ERROR')
             ->assertSet('reAnalyzeError', 'Re-analysis failed before contacting the AI provider.');
     }
+
+    /**
+     * Build a COMPLETED meeting that already has a distinctive successful
+     * Analysis and a matching COMPLETED AnalysisLog (attempt 1). This mirrors a
+     * real "previously completed" meeting so the failure path can be asserted
+     * against a known good baseline (attempt 2 = FAILED).
+     */
+    private function completedMeetingWithAnalysisAndLogs(array $result): Analysis
+    {
+        $meeting = Meeting::create([
+            'title' => 'Completed Re-analyzable Meeting',
+            'raw_text' => 'Transcript to re-analyze.',
+            'status' => 'COMPLETED',
+            'meeting_time' => '2026-08-19',
+        ]);
+
+        $analysis = Analysis::create([
+            'meeting_id' => $meeting->id,
+            'result' => $result,
+        ]);
+
+        AnalysisLog::create([
+            'meeting_id' => $meeting->id,
+            'status' => 'COMPLETED',
+            'provider' => 'openai',
+            'model' => 'gpt-5.6-luna',
+            'prompt_version' => 'meeting-analysis-v1',
+            'error_category' => null,
+            'error_message' => null,
+            'started_at' => now()->subMinute(),
+            'completed_at' => now(),
+        ]);
+
+        return $analysis;
+    }
+
+    /**
+     * CASE A — FAILED + no Analysis → retry success → new Analysis → COMPLETED.
+     */
+    public function test_case_a_failed_without_analysis_retry_success_creates_analysis(): void
+    {
+        $meeting = $this->failedMeetingWithoutAnalysis();
+        $this->enableFakeProvider('valid');
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openMeetingModal', $meeting->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'completed');
+
+        $this->assertSame('COMPLETED', $meeting->fresh()->status);
+        $this->assertDatabaseCount('analyses', 1);
+        $this->assertDatabaseHas('analysis_logs', [
+            'meeting_id' => $meeting->id,
+            'status' => 'COMPLETED',
+        ]);
+    }
+
+    /**
+     * CASE B — FAILED + no Analysis → retry failure → no Analysis → FAILED log.
+     */
+    public function test_case_b_failed_without_analysis_retry_failure_keeps_no_analysis(): void
+    {
+        $meeting = $this->failedMeetingWithoutAnalysis();
+        $this->enableFakeProvider('invalid_response');
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openMeetingModal', $meeting->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'error')
+            ->assertSet('reAnalyzeErrorCategory', 'AI_INVALID_RESPONSE');
+
+        $this->assertSame('FAILED', $meeting->fresh()->status);
+        $this->assertDatabaseCount('analyses', 0);
+        $this->assertDatabaseHas('analysis_logs', [
+            'meeting_id' => $meeting->id,
+            'status' => 'FAILED',
+            'error_category' => 'AI_INVALID_RESPONSE',
+        ]);
+    }
+
+    /**
+     * CASE C — COMPLETED + existing Analysis → retry success → Analysis updated,
+     * new COMPLETED log, Meeting COMPLETED.
+     */
+    public function test_case_c_completed_with_analysis_retry_success_updates_analysis(): void
+    {
+        $originalResult = [
+            'summary' => 'Original successful analysis',
+            'decisions' => [['text' => 'Keep PostgreSQL']],
+            'action_items' => [],
+            'open_questions' => [],
+        ];
+        $analysis = $this->completedMeetingWithAnalysisAndLogs($originalResult);
+        $meeting = $analysis->meeting;
+        $this->enableFakeProvider('valid');
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'completed');
+
+        $this->assertSame('COMPLETED', $meeting->fresh()->status);
+        // The single Analysis row is updated, never duplicated.
+        $this->assertDatabaseCount('analyses', 1);
+        // A fresh COMPLETED log is appended for the retry attempt.
+        $this->assertSame(2, AnalysisLog::where('meeting_id', $meeting->id)->count());
+        $this->assertDatabaseHas('analysis_logs', [
+            'meeting_id' => $meeting->id,
+            'status' => 'COMPLETED',
+        ]);
+        // The previous successful summary is replaced with the new one.
+        $this->assertNotSame(
+            $originalResult['summary'],
+            $analysis->fresh()->result['summary'] ?? null
+        );
+    }
+
+    /**
+     * CASE D (regression) — COMPLETED + existing Analysis → retry FAILS →
+     * previous Analysis.result is EXACTLY preserved, a new FAILED log is added,
+     * and the Meeting status reflects the failed latest attempt. No data loss.
+     */
+    public function test_case_d_completed_with_analysis_retry_failure_preserves_result(): void
+    {
+        $originalResult = [
+            'summary' => 'Original successful analysis',
+            'decisions' => [
+                ['text' => 'Keep PostgreSQL'],
+            ],
+            'action_items' => [],
+            'open_questions' => [],
+        ];
+        $analysis = $this->completedMeetingWithAnalysisAndLogs($originalResult);
+        $meeting = $analysis->meeting;
+
+        $logsBefore = AnalysisLog::where('meeting_id', $meeting->id)->count();
+        $this->assertSame(1, $logsBefore);
+
+        $this->enableFakeProvider('invalid_response');
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'error')
+            ->assertSet('reAnalyzeErrorCategory', 'AI_INVALID_RESPONSE');
+
+        // The previous successful Analysis row still exists...
+        $this->assertDatabaseHas('analyses', ['id' => $analysis->id]);
+
+        // ...and its JSON result is byte-for-byte unchanged (no data loss).
+        $this->assertSame($originalResult, $analysis->fresh()->result);
+
+        // Meeting reflects the failed latest attempt, not a false COMPLETED.
+        $this->assertSame('FAILED', $meeting->fresh()->status);
+
+        // A new FAILED log is added alongside the old successful log; nothing
+        // is overwritten.
+        $this->assertSame(2, AnalysisLog::where('meeting_id', $meeting->id)->count());
+        $this->assertDatabaseHas('analysis_logs', [
+            'meeting_id' => $meeting->id,
+            'status' => 'COMPLETED',
+        ]);
+        $this->assertDatabaseHas('analysis_logs', [
+            'meeting_id' => $meeting->id,
+            'status' => 'FAILED',
+            'error_category' => 'AI_INVALID_RESPONSE',
+        ]);
+        // No raw exception text leaks into the stored log.
+        $failedLog = AnalysisLog::where('meeting_id', $meeting->id)
+            ->where('status', 'FAILED')
+            ->first();
+        $this->assertNull($failedLog->error_message);
+    }
+
+    /**
+     * UI (Case D) — after a failed re-analysis of a previously COMPLETED meeting
+     * the modal still shows the safe error AND the previous valid result; it
+     * must NOT collapse to "No analysis data available.".
+     */
+    public function test_case_d_ui_shows_preserved_result_and_safe_error(): void
+    {
+        $originalResult = [
+            'summary' => 'Original successful analysis',
+            'decisions' => [['text' => 'Keep PostgreSQL']],
+            'action_items' => [],
+            'open_questions' => [],
+        ];
+        $analysis = $this->completedMeetingWithAnalysisAndLogs($originalResult);
+        $this->enableFakeProvider('invalid_response');
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'error')
+            // The safe error category and message are surfaced to the user.
+            ->assertSet('reAnalyzeErrorCategory', 'AI_INVALID_RESPONSE')
+            ->assertSet('reAnalyzeError', "Re-analysis failed: AI_INVALID_RESPONSE\nThe analysis could not be processed safely.")
+            // The previous valid summary is still rendered in the modal.
+            ->assertSee('Original successful analysis')
+            ->assertSee('Keep PostgreSQL')
+            // Crucially, the generic empty-state must not appear.
+            ->assertDontSee('No analysis data available.');
+    }
 }
