@@ -11,6 +11,8 @@
   - [Setup from clean checkout](#setup-from-clean-checkout)
     - [Prerequisites](#prerequisites)
     - [Quick start](#quick-start)
+    - [Configure .env](#configure-env)
+    - [Configure models.php](#configure-modelsphp)
     - [Running the local server](#running-the-local-server)
     - [Running tests](#running-tests)
     - [Running quality checks](#running-quality-checks)
@@ -26,7 +28,14 @@ The easiest way to get this project running locally is the `composer setup` scri
 - **PHP 8.4+** with required extensions (`mbstring`, `dom`, `fileinfo`, `pdo_pgsql`, etc.)
 - **Composer** (latest)
 - **Node.js v20+** and **npm**
-- **PostgreSQL** (local or Docker) — databases `notas_ia` (dev) and `notas_ia_test` (tests)
+- **PostgreSQL** (local or Docker) — databases `notas_ia` (dev) and `notas_ia_test` (tests) **must exist before running setup**
+
+> **Create the databases first** (if they don't exist):
+> ```sql
+> CREATE DATABASE notas_ia;
+> CREATE DATABASE notas_ia_test;
+> ```
+> The `composer setup` script runs migrations against both databases, so they must be available.
 
 ### Quick start
 
@@ -41,9 +50,57 @@ composer setup
 1. `composer install` — installs PHP dependencies
 2. Copies `.env.example` to `.env` (if not already present)
 3. `php artisan key:generate` — sets the application encryption key
-4. `php artisan migrate --force` — runs database migrations (PostgreSQL)
-5. `npm install --ignore-scripts` — installs frontend dependencies
+4. `php artisan migrate --force` — runs database migrations against `notas_ia` (PostgreSQL)
+5. `npm install --ignore-scripts` — installs frontend dependencies (ignores lifecycle scripts for security/speed)
 6. `npm run build` — compiles frontend assets with Vite
+
+> **After `composer setup`**, configure your `.env` with AI provider credentials (see [Configure .env](#configure-env)) before running the server or tests.
+
+### Configure .env
+
+Before starting the server or application, `.env` must be configured with the required environment variables for LLM provider integration.
+
+**Essential AI configuration (from `.env.example`):**
+
+| Variable | Purpose | Required? |
+|----------|---------|-----------|
+| `AI_PROVIDER` | Active provider: `openai` \| `lmstudio` \| `google` | Optinal, this is default provider and the active provider is choosen in execution. |
+| `AI_DRIVER` | Development driver: `llm` (real calls) \| `fake` (deterministic tests) | Yes, llm by default |
+| `AI_FAKE_OUTCOME` | When `AI_DRIVER=fake`: `valid` \| `error` \| `empty` | If using `fake` |
+| `AI_TIMEOUT` | Approved finite request timeout | yes, specially if using heavy local LLM (default: `120`s)
+
+The currently tested and supported providers are:
+
+**OpenAI (default provider):**
+- `OPENAI_BASE_URL` — API endpoint (default: `https://api.openai.com/v1`)
+- `OPENAI_API_KEY` — Your OpenAI API key
+- `OPENAI_MODEL` — Model identifier (e.g., `gpt-5.6-luna`)
+- `OPENAI_TIMEOUT` — Request timeout in seconds (default: `120`)
+
+**LM Studio (local OpenAI-compatible server):**
+- `LMSTUDIO_BASE_URL` — Local server URL (default: `http://localhost:1234/v1`)
+- `LMSTUDIO_API_KEY` — Optional API key if your LM Studio instance requires one
+- `LMSTUDIO_MODEL` — Model identifier as served by LM Studio (e.g., `qwen/qwen3.5-9b`)
+- `LMSTUDIO_TIMEOUT` — Request timeout in seconds (default: `120`)
+
+> **Note:** LM Studio runs outside this project. Simply expose its URL and optional API key in `.env` while loading the desire models; further configuration is needed in 'models.php' as shown in the upcoming section.
+
+**Google Gemini:**
+- `GOOGLE_AI_API_KEY` — API key from [Google AI Studio](https://aistudio.google.com/apikey)
+- `GOOGLE_AI_BASE_URL` — API endpoint (default: `https://generativelanguage.googleapis.com/v1beta`)
+- `GOOGLE_AI_MODEL` — Model identifier (e.g., `gemini-3.7-flash`)
+- `GOOGLE_AI_TIMEOUT` — Request timeout in seconds (default: `120`)
+
+### Configure models.php
+
+The `config/models.php` file defines the **approved model catalog** used by the application. It maps human-friendly keys to provider-specific model identifiers, token limits, and encoding.
+
+**What to update:**
+- Keep this file in sync with the **current models and endpoints offered by each provider**.
+- Update `model` values when providers release new model versions or retire old ones.
+- Adjust `max_chars`, `max_tokens`, and `encoding` to match the provider's documented limits or the ones to enforce.
+
+**Do NOT use this file to configure local models** (e.g., models you load in LM Studio). Local model selection is done at runtime and this config is only the application's reference catalog for validation and UI display. 
 
 ### Running the local server
 
@@ -119,21 +176,37 @@ All checks passed!
 If you prefer to run each step individually:
 
 ```bash
+# 1. Install PHP dependencies
 composer install
+
+# 2. Code style check (optional, but recommended)
 ./vendor/bin/pint --test
 
-Copy-Item .env.example .env
+# 3. Environment configuration (create .env from example)
 cp .env.example .env
 
+# 4. Generate application key
 php artisan key:generate
+
+# 5. Run migrations (requires PostgreSQL with `notas_ia` database created)
 php artisan migrate
-npm install
+
+# 6. Install frontend dependencies (--ignore-scripts for security/speed)
+npm install --ignore-scripts
+
+# 7. Build frontend assets
 npm run build
 ```
 
-Run the automated test suite
+> **Before `npm run build`**, configure your `.env` and `models.php` with AI provider credentials and information (see [Configure .env](#configure-env)) before running the server or tests.
+
+Run the automated test suite (requires `notas_ia_test` database):
 ```bash
- composer test
+composer test
+
+or 
+
+composer check
 ```
 
 ## Security checklist
