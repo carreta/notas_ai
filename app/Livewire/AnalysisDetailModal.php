@@ -6,8 +6,10 @@ use App\AI\AnalysisOrchestrator;
 use App\AI\AnalysisOutcome;
 use App\Models\Analysis;
 use App\Models\Meeting;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\On;
 use Livewire\Component;
+use LogicException;
 
 class AnalysisDetailModal extends Component
 {
@@ -86,7 +88,18 @@ class AnalysisDetailModal extends Component
 
     public function reAnalyze(): void
     {
-        if (! $this->analysis || ! $this->analysis->meeting) {
+        // Re-analysis is always sourced from the original Meeting, never from a
+        // previous (possibly failed) Analysis. A failed attempt leaves no
+        // Analysis row at all, so the Meeting is the only required source.
+        if (! $this->meeting) {
+            // State 5: the button was pressed but no request can be made.
+            // Surface it instead of failing silently.
+            $this->reAnalyzeStage = 'error';
+            $this->reAnalyzeProgress = 0;
+            $this->reAnalyzeLabel = 'Re-analysis failed';
+            $this->reAnalyzeError = $this->reAnalyzeBeforeProviderMessage();
+            $this->reAnalyzeErrorCategory = 'INTERNAL_ERROR';
+
             return;
         }
 
@@ -95,9 +108,11 @@ class AnalysisDetailModal extends Component
         $this->reAnalyzeProgress = 10;
         $this->reAnalyzeLabel = 'Analyzing transcript...';
 
-        // Update meeting status to ANALYZING when re-analysis starts
-        $this->analysis->meeting->update(['status' => 'ANALYZING']);
-        $this->meeting = $this->analysis->meeting->fresh();
+        // Update meeting status to ANALYZING when re-analysis starts.
+        // Source is the Meeting, which always exists here (guarded above) even
+        // when a previous failed attempt left no Analysis row.
+        $this->meeting->update(['status' => 'ANALYZING']);
+        $this->meeting = $this->meeting->fresh();
 
         // Dispatch browser event to update history table in real-time
         $this->dispatch('meetingStatusUpdated', meetingId: $this->meeting->id, status: 'ANALYZING');
@@ -105,21 +120,70 @@ class AnalysisDetailModal extends Component
 
     public function executeReAnalyze(): void
     {
-        if (! $this->analysis || ! $this->analysis->meeting) {
+        if (! $this->meeting) {
+            // State 5: no request was ever made to the AI provider.
+            $this->handleReAnalyzeFailure($this->reAnalyzeBeforeProviderMessage(), 'INTERNAL_ERROR');
+
             return;
         }
 
+        $meeting = $this->meeting;
+        $meetingId = $meeting->id;
+        // The previous attempt, if any. A failed attempt leaves no Analysis row,
+        // so this is often null and that is expected.
+        $previousAnalysis = $this->analysis;
+
         $this->reAnalyzeProgress = 30;
+        $this->reAnalyzeLabel = 'Re-analysis requested. Sending request to AI provider...';
+
+        Log::info('Re-analysis request prepared', [
+            'meeting_id' => $meetingId,
+            'previous_analysis_status' => $previousAnalysis?->status,
+            'model' => $this->reAnalyzeModel,
+        ]);
 
         $selectedModelConfig = $this->models[$this->reAnalyzeModel] ?? [];
         $provider = $selectedModelConfig['provider'] ?? config('ai.provider', 'openai');
         $modelKey = $this->reAnalyzeModel;
 
+        Log::info('Re-analysis invoking analysis pipeline', [
+            'meeting_id' => $meetingId,
+        ]);
+
         try {
-            /** @var AnalysisOutcome $outcome */
-            $outcome = app(AnalysisOrchestrator::class)->reAnalyze($this->analysis, $provider, $modelKey);
+            if ($previousAnalysis instanceof Analysis) {
+                // A usable prior Analysis exists: re-run the same pipeline,
+                // updating that record. Content is still sourced from the Meeting.
+                /** @var AnalysisOutcome $outcome */
+                $outcome = app(AnalysisOrchestrator::class)->reAnalyze($previousAnalysis, $provider, $modelKey);
+            } else {
+                // No prior Analysis (e.g. the previous attempt failed and left no
+                // Analysis row). Reuse the exact same pipeline as the main Analyze
+                // button, sourced entirely from the original Meeting.
+                /** @var AnalysisOutcome $outcome */
+                $outcome = app(AnalysisOrchestrator::class)->analyze($meeting, $provider, $modelKey);
+            }
+        } catch (LogicException $exception) {
+            // Thrown by the orchestrator before any AI provider call is attempted.
+            Log::error('Re-analysis failed before provider', [
+                'meeting_id' => $meetingId,
+                'previous_analysis_status' => $previousAnalysis?->status,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
+
+            $this->handleReAnalyzeFailure($this->reAnalyzeBeforeProviderMessage(), 'INTERNAL_ERROR');
+
+            return;
         } catch (\Throwable $exception) {
             report($exception);
+
+            Log::error('Re-analysis failed', [
+                'meeting_id' => $meetingId,
+                'previous_analysis_status' => $previousAnalysis?->status,
+                'exception' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]);
 
             $this->handleReAnalyzeFailure('The analysis could not be completed. Please try again later.', 'INTERNAL_ERROR');
 
@@ -127,16 +191,39 @@ class AnalysisDetailModal extends Component
         }
 
         if (! $outcome->success) {
-            $this->handleReAnalyzeFailure($outcome->userMessage, $outcome->category);
+            // State 4: the request reached the provider (or a later pipeline stage)
+            // but did not succeed. Surface the category so the user can tell
+            // e.g. AI_INVALID_RESPONSE apart from a generic failure.
+            Log::error('Re-analysis failed', [
+                'meeting_id' => $meetingId,
+                'previous_analysis_status' => $previousAnalysis?->status,
+                'category' => $outcome->category,
+            ]);
+
+            $this->handleReAnalyzeFailure(
+                $this->reAnalyzeAfterProviderMessage($outcome->category, $outcome->userMessage),
+                $outcome->category,
+            );
 
             return;
         }
 
-        // Reload the analysis to get fresh data
+        // State 3: the request completed successfully.
+        Log::info('Re-analysis AI request completed', [
+            'meeting_id' => $meetingId,
+            'analysis_id' => $outcome->analysis?->id,
+        ]);
+
+        // Reload the analysis to get fresh data. If this attempt created a new
+        // Analysis (no prior analysis_id), reload from the Meeting instead.
         $this->loadAnalysis();
+        if (! $this->analysis && $this->meeting) {
+            $this->loadAnalysisFromMeeting();
+        }
+
         $this->reAnalyzeStage = 'completed';
         $this->reAnalyzeProgress = 100;
-        $this->reAnalyzeLabel = 'Re-analysis completed';
+        $this->reAnalyzeLabel = 'Re-analysis completed successfully';
 
         // Update meeting status to COMPLETED on successful re-analysis
         if ($this->analysis && $this->analysis->meeting) {
@@ -155,7 +242,6 @@ class AnalysisDetailModal extends Component
 
     private function handleReAnalyzeFailure(string $error, string $category): void
     {
-        // Clear the result field so the UI shows "No analysis data available"
         // but keep the analysis row and logs intact
         if ($this->analysis) {
             $this->analysis->setAttribute('result', []);
@@ -163,10 +249,12 @@ class AnalysisDetailModal extends Component
             $this->analysis->refresh();
         }
 
-        // Update meeting status to FAILED on re-analysis failure
-        if ($this->analysis && $this->analysis->meeting) {
-            $this->analysis->meeting->update(['status' => 'FAILED']);
-            $this->meeting = $this->analysis->meeting->fresh();
+        // Update meeting status to FAILED on re-analysis failure. Use the
+        // Meeting directly so this works even when no prior Analysis exists
+        // (a failed attempt leaves no Analysis row).
+        if ($this->meeting) {
+            $this->meeting->update(['status' => 'FAILED']);
+            $this->meeting = $this->meeting->fresh();
 
             // Dispatch browser event to update history table in real-time
             $this->dispatch('meetingStatusUpdated', meetingId: $this->meeting->id, status: 'FAILED');
@@ -177,6 +265,35 @@ class AnalysisDetailModal extends Component
         $this->reAnalyzeLabel = 'Re-analysis failed';
         $this->reAnalyzeError = $error;
         $this->reAnalyzeErrorCategory = $category;
+    }
+
+    /**
+     * User-facing message when the click never reaches the AI provider
+     * (missing analysis/meeting or orchestrator guard). The technical code is
+     * only revealed in local/debug/testing environments.
+     */
+    private function reAnalyzeBeforeProviderMessage(): string
+    {
+        if (app()->environment(['local', 'debug', 'testing'])) {
+            return 'Re-analysis failed before contacting the AI provider.';
+        }
+
+        return 'Re-analysis could not start. Please try again.';
+    }
+
+    /**
+     * User-facing message when the request reached the provider but did not
+     * succeed. In local/debug/testing the safe category code (e.g.
+     * AI_INVALID_RESPONSE) is shown so failures are debuggable; in production
+     * only the safe, friendly message is exposed.
+     */
+    private function reAnalyzeAfterProviderMessage(string $category, string $userMessage): string
+    {
+        if (app()->environment(['local', 'debug', 'testing'])) {
+            return "Re-analysis failed: {$category}\n{$userMessage}";
+        }
+
+        return "The AI provider was contacted, but the re-analysis failed. {$userMessage}";
     }
 
     private function resetReAnalyze(): void

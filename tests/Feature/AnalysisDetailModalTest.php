@@ -2,11 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\AI\AnalysisOrchestrator;
+use App\AI\AnalysisOutcome;
 use App\Livewire\AnalysisDetailModal;
 use App\Models\Analysis;
+use App\Models\AnalysisLog;
 use App\Models\Meeting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use LogicException;
 use Tests\TestCase;
 
 class AnalysisDetailModalTest extends TestCase
@@ -189,5 +193,224 @@ class AnalysisDetailModalTest extends TestCase
             ->assertSee('Unresolved')
             // Owner is null, so no broken "Owner:" value is rendered.
             ->assertDontSee('Owner:');
+    }
+
+    private function failedMeetingWithAnalysis(): Analysis
+    {
+        $meeting = Meeting::create([
+            'title' => 'Re-analyzable Meeting',
+            'raw_text' => 'Transcript to re-analyze.',
+            'status' => 'FAILED',
+            'meeting_time' => '2026-08-19',
+        ]);
+
+        return Analysis::create([
+            'meeting_id' => $meeting->id,
+            'result' => [
+                'summary' => 'Old summary',
+                'decisions' => [],
+                'action_items' => [],
+                'open_questions' => [],
+            ],
+        ]);
+    }
+
+    private function bindOrchestrator($stub): void
+    {
+        $this->app->bind(AnalysisOrchestrator::class, fn () => $stub);
+    }
+
+    /**
+     * A meeting whose previous attempt FAILED. Crucially, the orchestrator's
+     * fail() path writes an AnalysisLog but NOT an Analysis row, so a FAILED
+     * meeting has no Analysis record at all.
+     */
+    private function failedMeetingWithoutAnalysis(): Meeting
+    {
+        return Meeting::create([
+            'title' => 'Failed Meeting',
+            'raw_text' => 'Transcript of a failed meeting.',
+            'status' => 'FAILED',
+            'meeting_time' => '2026-08-19',
+        ]);
+    }
+
+    private function enableFakeProvider(string $outcome): void
+    {
+        config([
+            'ai.driver' => 'fake',
+            'ai.fake_outcome' => $outcome,
+            'ai.provider' => 'openai',
+            'ai.model' => 'gpt-5.6-luna',
+            'ai.schema_version' => 'meeting-analysis-v1',
+        ]);
+    }
+
+    public function test_failed_meeting_reanalysis_runs_pipeline_and_completes(): void
+    {
+        $meeting = $this->failedMeetingWithoutAnalysis();
+
+        $this->enableFakeProvider('valid');
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openMeetingModal', $meeting->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'completed')
+            ->assertSet('reAnalyzeLabel', 'Re-analysis completed successfully');
+
+        // The real pipeline ran through the provider and created a fresh Analysis.
+        $this->assertSame('COMPLETED', $meeting->fresh()->status);
+        $this->assertDatabaseCount('analyses', 1);
+        $this->assertDatabaseHas('analysis_logs', [
+            'meeting_id' => $meeting->id,
+            'status' => 'COMPLETED',
+        ]);
+    }
+
+    public function test_completed_meeting_reanalysis_still_works(): void
+    {
+        $analysis = $this->failedMeetingWithAnalysis();
+        $meeting = $analysis->meeting;
+        $meeting->update(['status' => 'COMPLETED']);
+
+        $this->enableFakeProvider('valid');
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'completed');
+
+        $this->assertSame('COMPLETED', $meeting->fresh()->status);
+        // The prior Analysis is updated, not duplicated.
+        $this->assertDatabaseCount('analyses', 1);
+    }
+
+    public function test_failed_meeting_reanalysis_invalid_response_is_retryable(): void
+    {
+        $meeting = $this->failedMeetingWithoutAnalysis();
+
+        $this->enableFakeProvider('invalid_response');
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openMeetingModal', $meeting->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'error')
+            ->assertSet('reAnalyzeErrorCategory', 'AI_INVALID_RESPONSE');
+
+        // Provider was contacted (the pipeline ran) and recorded a FAILED log.
+        $this->assertDatabaseHas('analysis_logs', [
+            'meeting_id' => $meeting->id,
+            'status' => 'FAILED',
+            'error_category' => 'AI_INVALID_RESPONSE',
+        ]);
+        $this->assertSame(1, AnalysisLog::where('meeting_id', $meeting->id)->count());
+
+        // Retry: the failed analysis must be re-attemptable from History.
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openMeetingModal', $meeting->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'error')
+            ->assertSet('reAnalyzeErrorCategory', 'AI_INVALID_RESPONSE');
+
+        // A second attempt reached the provider again (no silent block).
+        $this->assertSame(2, AnalysisLog::where('meeting_id', $meeting->id)->count());
+    }
+
+    public function test_reanalyze_click_is_always_visible_and_acknowledged(): void
+    {
+        $analysis = $this->failedMeetingWithAnalysis();
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('reAnalyze')
+            ->assertSet('reAnalyzeStage', 'analyzing')
+            ->assertSet('reAnalyzeLabel', 'Analyzing transcript...');
+    }
+
+    public function test_reanalyze_success_shows_completed_and_creates_no_duplicate(): void
+    {
+        $analysis = $this->failedMeetingWithAnalysis();
+
+        $stub = new class($analysis)
+        {
+            public function __construct(private $analysis) {}
+
+            public function reAnalyze(Analysis $analysis, ?string $provider = null, ?string $modelKey = null): AnalysisOutcome
+            {
+                return new AnalysisOutcome(true, $this->analysis, null, '');
+            }
+        };
+        $this->bindOrchestrator($stub);
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'completed')
+            ->assertSet('reAnalyzeLabel', 'Re-analysis completed successfully')
+            ->assertSet('reAnalyzeProgress', 100);
+
+        // No duplicate analysis rows are created (only one for the meeting).
+        $this->assertDatabaseCount('analyses', 1);
+    }
+
+    public function test_reanalyze_invalid_response_surfaces_category_code(): void
+    {
+        $analysis = $this->failedMeetingWithAnalysis();
+
+        $stub = new class
+        {
+            public function reAnalyze(Analysis $analysis, ?string $provider = null, ?string $modelKey = null): AnalysisOutcome
+            {
+                return new AnalysisOutcome(false, null, 'AI_INVALID_RESPONSE', 'The analysis could not be processed safely.');
+            }
+        };
+        $this->bindOrchestrator($stub);
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'error')
+            ->assertSet('reAnalyzeErrorCategory', 'AI_INVALID_RESPONSE')
+            // In the testing environment the technical code is exposed.
+            ->assertSet('reAnalyzeError', "Re-analysis failed: AI_INVALID_RESPONSE\nThe analysis could not be processed safely.");
+    }
+
+    public function test_reanalyze_throws_before_provider_shows_before_provider_message(): void
+    {
+        $analysis = $this->failedMeetingWithAnalysis();
+
+        $stub = new class
+        {
+            public function reAnalyze(Analysis $analysis, ?string $provider = null, ?string $modelKey = null): AnalysisOutcome
+            {
+                throw new LogicException('Analysis cannot be re-analyzed without its meeting.');
+            }
+        };
+        $this->bindOrchestrator($stub);
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('reAnalyze')
+            ->call('executeReAnalyze')
+            ->assertSet('reAnalyzeStage', 'error')
+            ->assertSet('reAnalyzeErrorCategory', 'INTERNAL_ERROR')
+            ->assertSet('reAnalyzeError', 'Re-analysis failed before contacting the AI provider.');
+    }
+
+    public function test_reanalyze_with_missing_analysis_fails_visibly_not_silently(): void
+    {
+        // A modal whose analysis was never loaded (state 5: click, no request).
+        Livewire::test(AnalysisDetailModal::class)
+            ->assertSet('analysisId', null)
+            ->call('reAnalyze')
+            ->assertSet('reAnalyzeStage', 'error')
+            ->assertSet('reAnalyzeErrorCategory', 'INTERNAL_ERROR')
+            ->assertSet('reAnalyzeError', 'Re-analysis failed before contacting the AI provider.');
     }
 }
