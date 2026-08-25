@@ -68,15 +68,46 @@
                     </div>
                 </div>
 
-                <button
-                    class="text-on-surface-variant hover:text-primary p-sm rounded hover:bg-surface-container-low transition-colors"
-                    wire:click="closeModal"
-                    aria-label="Close modal"
-                >
-                    <span class="material-symbols-outlined">
-                        close
-                    </span>
-                </button>
+                <div class="flex items-center gap-sm">
+                    @if($analysis)
+                        @if($editing)
+                            <button
+                                type="button"
+                                wire:click="saveEdits"
+                                class="bg-primary text-on-primary font-label-md px-md py-xs rounded hover:bg-primary-container transition-colors flex items-center gap-xs"
+                            >
+                                <span class="material-symbols-outlined text-[16px]">save</span>
+                                Save Changes
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="cancelEditing"
+                                class="bg-surface-container-low text-on-surface font-label-md px-md py-xs rounded hover:bg-surface-container-lowest transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        @else
+                            <button
+                                type="button"
+                                wire:click="startEditing"
+                                class="bg-surface-container-low text-on-surface font-label-md px-md py-xs rounded hover:bg-surface-container-lowest transition-colors flex items-center gap-xs"
+                            >
+                                <span class="material-symbols-outlined text-[16px]">edit</span>
+                                Edit
+                            </button>
+                        @endif
+                    @endif
+
+                    <button
+                        class="text-on-surface-variant hover:text-primary p-sm rounded hover:bg-surface-container-low transition-colors"
+                        wire:click="closeModal"
+                        aria-label="Close modal"
+                    >
+                        <span class="material-symbols-outlined">
+                            close
+                        </span>
+                    </button>
+                </div>
             </div>
 
 
@@ -108,7 +139,7 @@
                 id="modalScrollArea"
             >
               <!--   partials/analysis-result -->
-                @include('partials.analysis-result')
+                @include('partials.analysis-result', ['editing' => $editing, 'editableResult' => $editableResult])
 
             </div>
 

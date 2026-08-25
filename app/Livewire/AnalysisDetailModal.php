@@ -7,6 +7,7 @@ use App\AI\AnalysisOutcome;
 use App\Models\Analysis;
 use App\Models\Meeting;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Component;
 use LogicException;
@@ -38,6 +39,13 @@ class AnalysisDetailModal extends Component
 
     public ?string $reAnalyzeErrorCategory = null;
 
+    // Manual correction (human edit) state. A user may fix AI-generated
+    // result fields without triggering another LLM request or a new
+    // AnalysisLog. This is a HUMAN correction, never an AI analysis attempt.
+    public bool $editing = false;
+
+    public array $editableResult = [];
+
     protected $listeners = [
         'openAnalysisModal' => 'openModal',
         'openMeetingModal' => 'openModalByMeeting',
@@ -58,6 +66,7 @@ class AnalysisDetailModal extends Component
         $this->loadAnalysis();
         $this->activeTab = 'analysis';
         $this->resetReAnalyze();
+        $this->exitEditing();
     }
 
     #[On('openMeetingModal')]
@@ -69,6 +78,7 @@ class AnalysisDetailModal extends Component
         $this->loadAnalysisFromMeeting();
         $this->activeTab = 'analysis';
         $this->resetReAnalyze();
+        $this->exitEditing();
     }
 
     public function closeModal(): void
@@ -79,11 +89,227 @@ class AnalysisDetailModal extends Component
         $this->meeting = null;
         $this->activeTab = 'analysis';
         $this->resetReAnalyze();
+        $this->exitEditing();
     }
 
     public function setTab(string $tab): void
     {
         $this->activeTab = $tab;
+    }
+
+    /**
+     * Enter manual-edit mode by copying the current Analysis.result into a
+     * local editable copy. No provider call, no DB write.
+     */
+    public function startEditing(): void
+    {
+        if (! $this->analysis) {
+            return;
+        }
+
+        // Deep copy so cancelling never mutates the original result.
+        $this->editableResult = json_decode(json_encode($this->analysis->result ?? []), true) ?? [];
+        $this->editing = true;
+        $this->resetErrorBag();
+    }
+
+    /**
+     * Discard unsaved edits and return to read-only mode. No DB write.
+     */
+    public function cancelEditing(): void
+    {
+        $this->exitEditing();
+    }
+
+    /**
+     * Persist the human-corrected result onto the existing Analysis row.
+     *
+     * This is a HUMAN correction:
+     *  - the AI provider is NOT contacted;
+     *  - no new AnalysisLog is created (editing is not an AI attempt);
+     *  - the existing provider/model/token metadata is left untouched;
+     *  - only analyses.result is updated (updated_at changes automatically).
+     */
+    public function saveEdits(): void
+    {
+        if (! $this->analysis) {
+            return;
+        }
+
+        $this->normalizeEditableResult();
+        $this->applyProvenanceAdjustments();
+
+        // Field-level validation. On failure Livewire throws and keeps us in
+        // edit mode with the error bag populated; nothing is persisted.
+        $this->validate($this->editRules());
+
+        // Cross-field contract consistency (priority/due-date sources).
+        if (! $this->validateConsistency()) {
+            return;
+        }
+
+        $this->analysis->update(['result' => $this->editableResult]);
+
+        $this->exitEditing();
+        $this->analysis->refresh();
+
+        // Let other components (e.g. History) refresh the displayed result.
+        $this->dispatch('analysisUpdated', analysisId: $this->analysis->id);
+    }
+
+    private function exitEditing(): void
+    {
+        $this->editing = false;
+        $this->editableResult = [];
+        $this->resetErrorBag();
+    }
+
+    /**
+     * Normalize empty strings to null and guarantee every action-item key
+     * exists with the contract shape before validation/persistence.
+     */
+    private function normalizeEditableResult(): void
+    {
+        $result = $this->editableResult;
+
+        $result['summary'] = isset($result['summary']) ? (string) $result['summary'] : '';
+
+        $result['decisions'] = array_values(array_map(
+            static fn ($d): array => ['text' => is_array($d) ? (string) ($d['text'] ?? '') : (string) $d],
+            $result['decisions'] ?? []
+        ));
+
+        $result['open_questions'] = array_values(array_map(
+            static fn ($q): array => ['text' => is_array($q) ? (string) ($q['text'] ?? '') : (string) $q],
+            $result['open_questions'] ?? []
+        ));
+
+        $result['action_items'] = array_values(array_map(function ($item): array {
+            $item = is_array($item) ? $item : [];
+
+            return [
+                'task' => (string) ($item['task'] ?? ''),
+                'owner' => $this->nullIfEmpty($item['owner'] ?? null),
+                'priority' => $this->nullIfEmpty($item['priority'] ?? null),
+                'priority_source' => $item['priority_source'] ?? null,
+                'due_date_text' => $this->nullIfEmpty($item['due_date_text'] ?? null),
+                'due_date' => $this->nullIfEmpty($item['due_date'] ?? null),
+                'due_date_source' => $item['due_date_source'] ?? null,
+            ];
+        }, $result['action_items'] ?? []));
+
+        $this->editableResult = $result;
+    }
+
+    private function nullIfEmpty(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value) && trim($value) === '') {
+            return null;
+        }
+
+        return is_string($value) ? $value : (string) $value;
+    }
+
+    /**
+     * Apply provenance policy when the USER manually changes a controlled
+     * value (TD-010 / TD-011): a manual change must not keep a false
+     * "EXPLICIT"/"INFERRED"/"RESOLVED"/"UNRESOLVED" provenance.
+     *
+     *  - priority changed  -> priority_source = null
+     *  - due_date changed  -> due_date_source = null AND stale due_date_text cleared
+     *
+     * Unchanged fields keep their original provenance.
+     */
+    private function applyProvenanceAdjustments(): void
+    {
+        $analysis = $this->analysis;
+        if ($analysis === null) {
+            return;
+        }
+
+        $original = $analysis->result;
+        $originalItems = is_array($original['action_items'] ?? null) ? $original['action_items'] : [];
+
+        foreach ($this->editableResult['action_items'] ?? [] as $i => $item) {
+            $originalItem = is_array($originalItems[$i] ?? null) ? $originalItems[$i] : [];
+
+            if (($originalItem['priority'] ?? null) !== ($item['priority'] ?? null)) {
+                $this->editableResult['action_items'][$i]['priority_source'] = null;
+            }
+
+            if (($originalItem['due_date'] ?? null) !== ($item['due_date'] ?? null)) {
+                $this->editableResult['action_items'][$i]['due_date_source'] = null;
+                $this->editableResult['action_items'][$i]['due_date_text'] = null;
+            }
+        }
+    }
+
+    /**
+     * Field-level rules for the editable copy. Mirrors the AI contract
+     * (StructuredAnalysisValidator) but uses Livewire's error bag so the UI
+     * can show per-field messages and stay in edit mode on failure.
+     */
+    private function editRules(): array
+    {
+        return [
+            'editableResult.summary' => ['required', 'string', 'max:5000'],
+            'editableResult.decisions.*.text' => ['required', 'string', 'max:5000'],
+            'editableResult.open_questions.*.text' => ['required', 'string', 'max:5000'],
+            'editableResult.action_items.*.task' => ['required', 'string', 'max:2000'],
+            'editableResult.action_items.*.owner' => ['nullable', 'string', 'max:255'],
+            'editableResult.action_items.*.priority' => ['nullable', Rule::in(['LOW', 'MEDIUM', 'HIGH'])],
+            'editableResult.action_items.*.due_date' => ['nullable', 'date', 'date_format:Y-m-d'],
+        ];
+    }
+
+    /**
+     * Cross-field contract consistency (TD-010 / TD-011). Returns true when
+     * the editable result is internally consistent, otherwise populates the
+     * error bag and returns false (caller keeps edit mode).
+     */
+    private function validateConsistency(): bool
+    {
+        $valid = true;
+
+        foreach ($this->editableResult['action_items'] ?? [] as $i => $item) {
+            $priority = $item['priority'] ?? null;
+            $prioritySource = $item['priority_source'] ?? null;
+
+            if ($priority === null && $prioritySource !== null) {
+                $this->addError(
+                    "editableResult.action_items.{$i}.priority_source",
+                    'A priority source requires a priority.'
+                );
+                $valid = false;
+            }
+
+            if ($priority !== null && $prioritySource !== null
+                && ! in_array($prioritySource, ['EXPLICIT', 'INFERRED'], true)) {
+                $this->addError(
+                    "editableResult.action_items.{$i}.priority_source",
+                    'Invalid priority source.'
+                );
+                $valid = false;
+            }
+
+            $dueSource = $item['due_date_source'] ?? null;
+            $dueDate = $item['due_date'] ?? null;
+            $dueText = $item['due_date_text'] ?? null;
+
+            if ($dueSource === 'UNRESOLVED' && ($dueDate !== null || $dueText === null)) {
+                $this->addError(
+                    "editableResult.action_items.{$i}.due_date_source",
+                    'An unresolved due date needs relative text and no absolute date.'
+                );
+                $valid = false;
+            }
+        }
+
+        return $valid;
     }
 
     public function reAnalyze(): void

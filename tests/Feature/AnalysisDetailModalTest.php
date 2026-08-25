@@ -621,4 +621,355 @@ class AnalysisDetailModalTest extends TestCase
             // Crucially, the generic empty-state must not appear.
             ->assertDontSee('No analysis data available.');
     }
+
+    // ---------------------------------------------------------------------
+    // Manual analysis editing (human correction)
+    // ---------------------------------------------------------------------
+
+    private function sampleResult(): array
+    {
+        return [
+            'summary' => 'Sample summary for editing.',
+            'decisions' => [['text' => 'Adopt PostgreSQL']],
+            'action_items' => [
+                [
+                    'task' => 'Update documentation',
+                    'owner' => 'Daniel',
+                    'priority' => 'HIGH',
+                    'priority_source' => 'INFERRED',
+                    'due_date_text' => null,
+                    'due_date' => null,
+                    'due_date_source' => null,
+                ],
+            ],
+            'open_questions' => [['text' => 'Should we migrate?']],
+        ];
+    }
+
+    private function makeAnalysis(array $result, ?string $metadata = null): Analysis
+    {
+        $meeting = Meeting::create([
+            'title' => 'Editable Meeting',
+            'raw_text' => 'notes',
+            'status' => 'COMPLETED',
+        ]);
+
+        return Analysis::create([
+            'meeting_id' => $meeting->id,
+            'result' => $result,
+            'analysis_metadata' => $metadata,
+        ]);
+    }
+
+    public function test_edit_button_appears_for_valid_analysis(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->assertSee('Edit')
+            ->assertDontSee('Save Changes');
+    }
+
+    public function test_edit_mode_loads_current_result(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->assertSet('editing', true)
+            ->assertSet('editableResult.summary', 'Sample summary for editing.')
+            ->assertSet('editableResult.action_items.0.owner', 'Daniel');
+    }
+
+    public function test_owner_can_be_changed(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.owner', 'Emma')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $this->assertSame('Emma', $analysis->fresh()->result['action_items'][0]['owner']);
+    }
+
+    public function test_priority_can_be_changed_and_source_cleared(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.priority', 'MEDIUM')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $item = $analysis->fresh()->result['action_items'][0];
+        $this->assertSame('MEDIUM', $item['priority']);
+        // Provenance must not falsely remain INFERRED after a manual change.
+        $this->assertNull($item['priority_source']);
+    }
+
+    public function test_invalid_priority_is_rejected(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.priority', 'URGENT')
+            ->call('saveEdits')
+            ->assertHasErrors(['editableResult.action_items.0.priority']);
+
+        // The original value is preserved (no partial persist).
+        $this->assertSame('HIGH', $analysis->fresh()->result['action_items'][0]['priority']);
+    }
+
+    public function test_task_text_can_be_edited(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.task', 'Rewrite the runbook')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $this->assertSame('Rewrite the runbook', $analysis->fresh()->result['action_items'][0]['task']);
+    }
+
+    public function test_decision_text_can_be_edited(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.decisions.0.text', 'Adopt MySQL instead')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $this->assertSame('Adopt MySQL instead', $analysis->fresh()->result['decisions'][0]['text']);
+    }
+
+    public function test_open_question_text_can_be_edited(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.open_questions.0.text', 'Why migrate now?')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $this->assertSame('Why migrate now?', $analysis->fresh()->result['open_questions'][0]['text']);
+    }
+
+    public function test_summary_can_be_edited(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.summary', 'Corrected summary')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $this->assertSame('Corrected summary', $analysis->fresh()->result['summary']);
+    }
+
+    public function test_due_date_can_be_changed(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.due_date', '2026-09-15')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $item = $analysis->fresh()->result['action_items'][0];
+        $this->assertSame('2026-09-15', $item['due_date']);
+        // Manual edit must not leave a false due-date provenance/source.
+        $this->assertNull($item['due_date_source']);
+        $this->assertNull($item['due_date_text']);
+    }
+
+    public function test_invalid_due_date_provenance_is_rejected(): void
+    {
+        $result = $this->sampleResult();
+        $result['action_items'][0]['due_date'] = '2026-08-30';
+        $result['action_items'][0]['due_date_source'] = 'UNRESOLVED';
+        $result['action_items'][0]['due_date_text'] = 'next Friday';
+        $analysis = $this->makeAnalysis($result);
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->call('saveEdits')
+            ->assertHasErrors(['editableResult.action_items.0.due_date_source']);
+
+        // Nothing was persisted for the rejected edit.
+        $this->assertSame('UNRESOLVED', $analysis->fresh()->result['action_items'][0]['due_date_source']);
+    }
+
+    public function test_save_updates_result_and_exits_edit_mode(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.summary', 'Persisted summary')
+            ->call('saveEdits')
+            ->assertSet('editing', false)
+            ->assertHasNoErrors();
+
+        $this->assertSame('Persisted summary', $analysis->fresh()->result['summary']);
+    }
+
+    public function test_cancel_does_not_modify_result(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.summary', 'CHANGED BUT CANCELLED')
+            ->call('cancelEditing')
+            ->assertSet('editing', false);
+
+        $this->assertSame('Sample summary for editing.', $analysis->fresh()->result['summary']);
+    }
+
+    public function test_provider_is_not_called_during_manual_edit(): void
+    {
+        $calls = 0;
+        $this->app->bind(AnalysisOrchestrator::class, function () use (&$calls) {
+            return new class($calls)
+            {
+                public function __construct(private int &$calls) {}
+
+                public function analyze(...$args): never
+                {
+                    $this->calls++;
+                    throw new LogicException('provider must not be called on manual edit');
+                }
+
+                public function reAnalyze(...$args): never
+                {
+                    $this->calls++;
+                    throw new LogicException('provider must not be called on manual edit');
+                }
+            };
+        });
+
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.owner', 'Emma')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $this->assertSame(0, $calls);
+    }
+
+    public function test_no_new_analysis_log_created_for_editing(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        $before = AnalysisLog::where('meeting_id', $analysis->meeting_id)->count();
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.owner', 'Emma')
+            ->call('saveEdits');
+
+        $after = AnalysisLog::where('meeting_id', $analysis->meeting_id)->count();
+        $this->assertSame($before, $after);
+    }
+
+    public function test_existing_ai_metadata_unchanged_after_edit(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+        // A real AnalysisLog id acts as the analysis_metadata FK reference.
+        $log = AnalysisLog::create([
+            'meeting_id' => $analysis->meeting_id,
+            'status' => 'COMPLETED',
+            'provider' => 'openai',
+            'model' => 'gpt-5.6-luna',
+            'prompt_version' => 'meeting-analysis-v1',
+            'started_at' => now()->subMinute(),
+            'completed_at' => now(),
+        ]);
+        $analysis->update(['analysis_metadata' => $log->id]);
+        $expected = $log->id;
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.summary', 'Edited summary')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $this->assertSame($expected, $analysis->fresh()->analysis_metadata);
+    }
+
+    public function test_empty_required_summary_and_task_rejected(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.summary', '')
+            ->call('saveEdits')
+            ->assertHasErrors(['editableResult.summary']);
+
+        // Task is also required.
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.task', '')
+            ->call('saveEdits')
+            ->assertHasErrors(['editableResult.action_items.0.task']);
+    }
+
+    public function test_empty_owner_persists_as_null(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.owner', '')
+            ->call('saveEdits')
+            ->assertHasNoErrors();
+
+        $this->assertNull($analysis->fresh()->result['action_items'][0]['owner']);
+    }
+
+    public function test_modal_shows_updated_result_after_save(): void
+    {
+        $analysis = $this->makeAnalysis($this->sampleResult());
+
+        Livewire::test(AnalysisDetailModal::class)
+            ->dispatch('openAnalysisModal', $analysis->id)
+            ->call('startEditing')
+            ->set('editableResult.action_items.0.owner', 'Emma')
+            ->call('saveEdits')
+            ->assertSee('Emma')
+            ->assertDontSee('Daniel');
+    }
 }
