@@ -56,7 +56,7 @@ class AnalyzeFormTest extends TestCase
             ->set('meeting_text', '<script>alert("xss")</script>hello world')
             ->set('meeting_title', 'Valid Title')
             ->set('meeting_date', '2025-01-15')
-            ->call('submit')
+            ->call('validation')
             ->assertHasErrors(['meeting_text' => SafeText::class]);
     }
 
@@ -66,7 +66,7 @@ class AnalyzeFormTest extends TestCase
             ->set('meeting_text', str_repeat('a', 50001))
             ->set('meeting_title', 'Valid Title')
             ->set('meeting_date', '2025-01-15')
-            ->call('submit')
+            ->call('validation')
             ->assertHasErrors(['meeting_text' => 'max']);
     }
 
@@ -77,7 +77,7 @@ class AnalyzeFormTest extends TestCase
             ->set('meeting_text', str_repeat('a', 80001))
             ->set('meeting_title', 'Valid Title')
             ->set('meeting_date', '2025-01-15')
-            ->call('submit')
+            ->call('validation')
             ->assertHasErrors(['meeting_text' => 'max']);
     }
 

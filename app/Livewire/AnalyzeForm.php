@@ -22,6 +22,8 @@ class AnalyzeForm extends Component
 
     public ?string $meeting_date = null;
 
+    public string $maxDate = '';
+
     public array $models = [];
 
     public string $stage = 'idle';
@@ -71,7 +73,19 @@ class AnalyzeForm extends Component
 
         $this->model = array_key_first($models) ?? 'chatgpt-sol';
 
+        $this->maxDate = today()->toDateString();
+
         $this->syncModelLimits();
+    }
+
+    /**
+     * UI boundary helper: a date is not selectable when it is after today
+     * (the maximum allowed meeting date). Mirrors the front-end calendar
+     * disabling logic and the server-side `before_or_equal:today` rule.
+     */
+    public function isDateDisabled(string $iso): bool
+    {
+        return $iso > today()->toDateString();
     }
 
     public function getCharacterCountProperty(): int
@@ -414,6 +428,7 @@ class AnalyzeForm extends Component
             'characterCount' => $this->characterCount,
             'maxChars' => $this->maxChars,
             'maxTokens' => $this->maxTokens,
+            'maxDate' => $this->maxDate,
             'errorDescriptions' => $this->errorDescriptions,
             'aiErrorDescription' => $this->lastErrorWasAi && $this->lastErrorCategory
                 ? $this->getAiErrorDescription()

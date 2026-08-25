@@ -130,3 +130,8 @@ html {
 body {
   @apply bg-background text-on-surface antialiased;
 }
+
+/* Alpine: hide elements until initialized */
+[x-cloak] {
+  display: none !important;
+}

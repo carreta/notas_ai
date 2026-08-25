@@ -110,7 +110,7 @@
 
     <form
         wire:submit="submit"
-        class="flex flex-col gap-lg w-full bg-surface-container-lowest border border-outline-variant rounded-xl p-xl shadow-sm transition-shadow duration-300 hover:shadow-md relative overflow-hidden"
+        class="flex flex-col gap-lg w-full bg-surface-container-lowest border border-outline-variant rounded-xl p-xl shadow-sm transition-shadow duration-300 hover:shadow-md relative overflow-visible"
         data-stage="{{ $stage }}"
     >
         @csrf
@@ -145,34 +145,128 @@
                 </template>
             </div>
 
-            <div class="md:w-1/3 flex flex-col gap-xs" x-data="{ dateHasInteracted: false, dateShowError: false, dateErrorTimer: null, checkDateError() { const dateVal = $wire.meeting_date; if (dateVal) { const d = new Date(dateVal + 'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0); this.dateShowError = d > today; } else { this.dateShowError = false; } } }">
+            <div
+                class="md:w-1/3 flex flex-col gap-xs"
+                x-data="datePicker('{{ $maxDate }}')"
+                data-max-date="{{ $maxDate }}"
+                x-on:validation-started.window="dateSubmitAttempted = true; checkError()"
+            >
                 <label
                     class="font-mono text-label-md text-on-surface-variant flex items-center gap-1"
                     for="meeting_date"
                 >
                     Meeting Date
-                    <span class="font-sans text-body-xs text-on-surface-variant/70">
-                        - Optional
-                    </span>
+                    <span class="font-sans text-body-sm text-error" aria-hidden="true">*</span>
                 </label>
 
-                <div class="relative">
-                    <input
-                        type="date"
-                        wire:model="meeting_date"
+                <div class="relative" x-on:click.outside="close()">
+                    <button
+                        type="button"
                         id="meeting_date"
-                        class="w-full bg-surface border border-outline-variant rounded-lg px-md py-sm text-body-md font-sans text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary input-transition appearance-none"
-                        :class="{ 'border-error! bg-error-container! focus:border-error! focus:ring-error! border-2': dateShowError }"
-                        x-on:focus="dateHasInteracted = true; dateErrorTimer = setTimeout(() => { checkDateError(); }, 2000)"
-                        x-on:blur="clearTimeout(dateErrorTimer); checkDateError();"
-                        x-on:change="checkDateError();"
+                        aria-haspopup="dialog"
+                        :aria-expanded="open"
+                        aria-required="true"
+                        @click="toggle()"
+                        class="w-full flex items-center justify-between gap-sm bg-surface border border-outline-variant rounded-lg px-md py-sm text-body-md font-sans focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary input-transition"
+                        :class="{ 'border-error! bg-error-container! focus:border-error! focus:ring-error! border-2': hasError, 'text-on-surface': selectedIso, 'text-outline-variant': !selectedIso }"
                     >
+                        <span x-text="displayValue() || 'Select meeting date'"></span>
+                        <span class="material-symbols-outlined text-outline pointer-events-none text-[18px]">
+                            calendar_today
+                        </span>
+                    </button>
+
+                    <!-- Calendar dropdown -->
+                    <div
+                        x-show="open"
+                        x-cloak
+                        role="dialog"
+                        aria-label="Meeting date picker"
+                        class="absolute right-0 top-full z-50 mt-xs w-[22rem] max-w-[calc(100vw-2rem)] bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg p-md"
+                        x-on:keydown.escape.window="open = false"
+                    >
+                        <!-- Header -->
+                        <div class="flex items-center justify-between gap-sm mb-sm">
+                            <button
+                                type="button"
+                                @click="prevMonth()"
+                                :disabled="!canGoPrev()"
+                                class="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="Previous month"
+                            >
+                                <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+                            </button>
+
+                            <div class="flex items-center gap-1">
+                                <select
+                                    aria-label="Select month"
+                                    x-model.number="viewMonth"
+                                    class="bg-surface border border-outline-variant rounded-md px-1 py-1 text-body-sm font-sans text-on-surface focus:outline-none focus:border-primary"
+                                >
+                                    <template x-for="(name, idx) in months" :key="idx">
+                                        <option :value="idx" :disabled="monthDisabled(idx)" x-text="name"></option>
+                                    </template>
+                                </select>
+
+                                <select
+                                    aria-label="Select year"
+                                    x-model.number="viewYear"
+                                    class="bg-surface border border-outline-variant rounded-md px-1 py-1 text-body-sm font-sans text-on-surface focus:outline-none focus:border-primary"
+                                >
+                                    <template x-for="year in yearOptions()" :key="year">
+                                        <option :value="year" x-text="year"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <button
+                                type="button"
+                                @click="nextMonth()"
+                                :disabled="!canGoNext()"
+                                class="p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed"
+                                aria-label="Next month"
+                            >
+                                <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                            </button>
+                        </div>
+
+                        <!-- Weekday header -->
+                        <div class="grid grid-cols-7 gap-1 mb-1">
+                            <template x-for="wd in weekdays" :key="wd">
+                                <div class="text-center text-label-sm font-mono text-outline py-1" x-text="wd"></div>
+                            </template>
+                        </div>
+
+                        <!-- Day grid -->
+                        <div class="grid grid-cols-7 gap-1">
+                            <template x-for="(cell, i) in calendarDays" :key="i">
+                                <div class="aspect-square">
+                                    <button
+                                        x-show="!cell.empty"
+                                        type="button"
+                                        :disabled="cell.disabled"
+                                        :aria-disabled="cell.disabled"
+                                        :aria-pressed="cell.isSelected"
+                                        :aria-current="cell.isToday ? 'date' : false"
+                                        @click="selectDay(cell)"
+                                        class="w-full h-full flex items-center justify-center rounded-lg text-body-sm font-sans transition-colors"
+                                        :class="cell.isSelected
+                                            ? 'bg-primary text-on-primary font-semibold'
+                                            : (cell.isToday
+                                                ? 'border border-primary text-primary font-semibold hover:bg-surface-container-low'
+                                                : (cell.disabled
+                                                    ? 'text-outline-variant opacity-50 cursor-not-allowed'
+                                                    : 'text-on-surface hover:bg-surface-container-low cursor-pointer'))"
+                                        x-text="cell.day"
+                                    ></button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
                 </div>
 
-                <template x-if="dateShowError">
-                    <p class="font-sans text-body-sm text-error italic mt-xs" role="alert">
-                        Date cannot be in the future
-                    </p>
+                <template x-if="errorMessage">
+                    <p class="font-sans text-body-sm text-error italic mt-xs" role="alert" x-text="errorMessage"></p>
                 </template>
             </div>
         </div>

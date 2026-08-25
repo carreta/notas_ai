@@ -123,14 +123,24 @@ class HasMeetingValidationTest extends TestCase
         $this->assertCount(1, $safeTextRules);
     }
 
-    public function test_date_rules_contain_nullable_date_and_before_or_equal(): void
+    public function test_date_rules_contain_required_date_and_before_or_equal(): void
     {
         $class = $this->makeClass();
         $rules = $class->getRules($this->modelConfig());
 
-        $this->assertContains('nullable', $rules['meeting_date']);
+        $this->assertContains('required', $rules['meeting_date']);
+        $this->assertNotContains('nullable', $rules['meeting_date']);
         $this->assertContains('date', $rules['meeting_date']);
         $this->assertContains('before_or_equal:today', $rules['meeting_date']);
+    }
+
+    public function test_date_required_message_is_present(): void
+    {
+        $class = $this->makeClass();
+        $messages = $class->getMessages();
+
+        $this->assertArrayHasKey('meeting_date.required', $messages);
+        $this->assertSame('Meeting date is required.', $messages['meeting_date.required']);
     }
 
     public function test_messages_returns_expected_keys(): void
