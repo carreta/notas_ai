@@ -155,8 +155,7 @@
                     class="font-mono text-label-md text-on-surface-variant flex items-center gap-1"
                     for="meeting_date"
                 >
-                    Meeting Date
-                    <span class="font-sans text-body-sm text-error" aria-hidden="true">*</span>
+                    Meeting Date (Optional)
                 </label>
 
                 <div class="relative" x-on:click.outside="close()">
@@ -165,7 +164,7 @@
                         id="meeting_date"
                         aria-haspopup="dialog"
                         :aria-expanded="open"
-                        aria-required="true"
+                        aria-required="false"
                         @click="toggle()"
                         class="w-full flex items-center justify-between gap-sm bg-surface border border-outline-variant rounded-lg px-md py-sm text-body-md font-sans focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary input-transition"
                         :class="{ 'border-error! bg-error-container! focus:border-error! focus:ring-error! border-2': hasError, 'text-on-surface': selectedIso, 'text-outline-variant': !selectedIso }"

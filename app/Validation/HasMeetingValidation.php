@@ -53,7 +53,7 @@ trait HasMeetingValidation
             'meeting_text' => ['required', 'string', new SafeText],
             'model' => ['required', 'string', Rule::in($modelKeys)],
             'meeting_title' => ['required', 'string', 'max:255', new SafeText],
-            'meeting_date' => ['required', 'date', 'before_or_equal:today'],
+            'meeting_date' => ['nullable', 'date', 'before_or_equal:today'],
         ];
     }
 
@@ -67,7 +67,6 @@ trait HasMeetingValidation
             'model.required' => 'Please select a model.',
             'model.in' => 'The selected model is invalid.',
             'meeting_date.date' => 'The meeting date must be a valid date.',
-            'meeting_date.required' => 'Meeting date is required.',
             'meeting_date.before_or_equal' => 'The meeting date cannot be in the future.',
         ];
     }

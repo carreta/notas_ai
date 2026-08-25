@@ -136,7 +136,7 @@ document.addEventListener('alpine:init', () => {
             const val = this.selectedIso;
 
             if (!val) {
-                this.localError = this.dateSubmitAttempted ? 'Meeting date is required.' : '';
+                this.localError = '';
             } else if (val > this.maxDate) {
                 this.localError = 'The meeting date cannot be in the future.';
             } else {

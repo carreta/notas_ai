@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Analysis;
 use App\Models\Meeting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -268,8 +269,125 @@ class HistoryControllerTest extends TestCase
         $response = $this->get('/history?search=zzz-no-match');
 
         $response->assertStatus(200);
-        $response->assertSee('No meetings found.');
+        // A filter is active, so the filtered empty-state is shown (not the
+        // generic "no meetings yet" message).
+        $response->assertSee('No meetings match your search.');
+        $response->assertDontSee('No meetings found.');
         $response->assertDontSee('Real');
+    }
+
+    public function test_generic_empty_state_when_no_meetings_and_no_filters(): void
+    {
+        $response = $this->get('/history');
+
+        $response->assertStatus(200);
+        $response->assertSee('No meetings found.');
+        $response->assertDontSee('No meetings match your search.');
+    }
+
+    public function test_search_by_transcript_text(): void
+    {
+        Meeting::create([
+            'title' => 'Unrelated Title',
+            'raw_text' => 'The postgres database needs tuning this quarter.',
+            'status' => 'COMPLETED',
+        ]);
+        Meeting::create([
+            'title' => 'Another',
+            'raw_text' => 'nothing interesting here',
+            'status' => 'COMPLETED',
+        ]);
+
+        $response = $this->get('/history?search=postgres');
+
+        $response->assertSee('Unrelated Title');
+        $response->assertDontSee('Another');
+    }
+
+    public function test_search_by_analysis_summary(): void
+    {
+        $meeting = Meeting::create([
+            'title' => 'Session A',
+            'raw_text' => 'notes',
+            'status' => 'COMPLETED',
+        ]);
+        Analysis::create([
+            'meeting_id' => $meeting->id,
+            'result' => [
+                'summary' => 'PostgreSQL migration was approved by the team.',
+                'decisions' => [],
+                'action_items' => [],
+                'open_questions' => [],
+            ],
+        ]);
+
+        Meeting::create([
+            'title' => 'Session B',
+            'raw_text' => 'notes',
+            'status' => 'COMPLETED',
+        ]);
+
+        $response = $this->get('/history?search=PostgreSQL');
+
+        $response->assertSee('Session A');
+        $response->assertDontSee('Session B');
+    }
+
+    public function test_search_by_analysis_action_item_text(): void
+    {
+        $meeting = Meeting::create([
+            'title' => 'Planning',
+            'raw_text' => 'notes',
+            'status' => 'COMPLETED',
+        ]);
+        Analysis::create([
+            'meeting_id' => $meeting->id,
+            'result' => [
+                'summary' => 'Summary',
+                'decisions' => [],
+                'action_items' => [['task' => 'Upgrade the Postgres cluster']],
+                'open_questions' => [],
+            ],
+        ]);
+
+        Meeting::create([
+            'title' => 'Other',
+            'raw_text' => 'notes',
+            'status' => 'COMPLETED',
+        ]);
+
+        $response = $this->get('/history?search=Postgres');
+
+        $response->assertSee('Planning');
+        $response->assertDontSee('Other');
+    }
+
+    public function test_invalid_status_is_safely_ignored(): void
+    {
+        Meeting::create(['title' => 'One', 'raw_text' => 'notes', 'status' => 'COMPLETED']);
+        Meeting::create(['title' => 'Two', 'raw_text' => 'notes', 'status' => 'FAILED']);
+
+        // An unknown status is not in the whitelist, so it is ignored and all
+        // meetings are returned (no SQL error, no filtering).
+        $response = $this->get('/history?status=INVALID_STATUS');
+
+        $response->assertStatus(200);
+        $response->assertSee('One');
+        $response->assertSee('Two');
+    }
+
+    public function test_query_parameters_are_preserved_in_sort_links(): void
+    {
+        Meeting::create(['title' => 'Alpha', 'raw_text' => 'notes', 'status' => 'COMPLETED']);
+        Meeting::create(['title' => 'Beta', 'raw_text' => 'notes', 'status' => 'COMPLETED']);
+
+        $response = $this->get('/history?search=Alpha&status=COMPLETED');
+
+        // The sortable links must carry the active search/status filters so
+        // that re-sorting keeps the current result set.
+        $html = $response->getContent();
+        $this->assertStringContainsString('search=Alpha', $html);
+        $this->assertStringContainsString('status=COMPLETED', $html);
     }
 
     public function test_modal_wiring_preserved_after_filtering(): void
@@ -340,5 +458,16 @@ class HistoryControllerTest extends TestCase
         // Invalid dir must fall back to desc: by title, 'Older' > 'Newer'
         // alphabetically, so Older appears before Newer.
         $this->assertLessThan(strpos($html, 'Newer Title'), strpos($html, 'Older Title'));
+    }
+
+    public function test_search_input_uses_live_debounced_binding(): void
+    {
+        $response = $this->get('/history');
+
+        $response->assertStatus(200);
+        // The search field must be a Livewire live-debounced binding so the user
+        // can type continuously and a single request fires only after a brief
+        // pause (no per-keystroke reload, no forced Enter).
+        $response->assertSee('wire:model.live.debounce.500ms');
     }
 }

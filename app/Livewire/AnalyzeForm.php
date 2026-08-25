@@ -139,6 +139,13 @@ class AnalyzeForm extends Component
             'stage' => $this->stage,
         ]);
 
+        // An empty meeting date is treated as "no date" (optional field),
+        // not as a validation failure. Normalize empty string to null so the
+        // nullable rule accepts it and meeting_time is persisted as null.
+        if ($this->meeting_date === '') {
+            $this->meeting_date = null;
+        }
+
         // precheck, required fields and character limits.
         try {
             $this->validate(

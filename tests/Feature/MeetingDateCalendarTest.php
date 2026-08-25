@@ -16,14 +16,15 @@ class MeetingDateCalendarTest extends TestCase
         return config('models');
     }
 
-    public function test_meeting_date_is_required(): void
+    public function test_meeting_date_is_optional(): void
     {
         Livewire::test(AnalyzeForm::class, ['models' => $this->models()])
             ->set('meeting_text', 'This is a valid meeting transcript.')
             ->set('meeting_title', 'Q3 Planning')
             ->call('validation')
-            ->assertHasErrors(['meeting_date' => 'required'])
-            ->assertSee('Meeting date is required.');
+            ->assertHasNoErrors()
+            ->assertDontSee('Meeting date is required.')
+            ->assertSee('Meeting Date (Optional)');
     }
 
     public function test_today_is_accepted(): void

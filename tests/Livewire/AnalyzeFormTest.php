@@ -3,6 +3,7 @@
 namespace Tests\Livewire;
 
 use App\Livewire\AnalyzeForm;
+use App\Models\Meeting;
 use App\Rules\SafeText;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -131,5 +132,59 @@ class AnalyzeFormTest extends TestCase
             ->set('meeting_text', '')
             ->call('submit')
             ->assertSee('error');
+    }
+
+    public function test_no_meeting_date_is_optional_and_persists_null(): void
+    {
+        Livewire::test(AnalyzeForm::class, ['models' => $this->models()])
+            ->set('meeting_text', 'Valid transcript content.')
+            ->set('meeting_title', 'Q3 Planning')
+            ->call('validation')
+            ->assertHasNoErrors()
+            ->call('save');
+
+        $meeting = Meeting::latest()->first();
+        $this->assertNull($meeting->meeting_time);
+    }
+
+    public function test_past_meeting_date_is_accepted(): void
+    {
+        Livewire::test(AnalyzeForm::class, ['models' => $this->models()])
+            ->set('meeting_text', 'Valid transcript content.')
+            ->set('meeting_title', 'Q3 Planning')
+            ->set('meeting_date', '2025-01-15')
+            ->call('validation')
+            ->assertHasNoErrors();
+    }
+
+    public function test_todays_meeting_date_is_accepted(): void
+    {
+        Livewire::test(AnalyzeForm::class, ['models' => $this->models()])
+            ->set('meeting_text', 'Valid transcript content.')
+            ->set('meeting_title', 'Q3 Planning')
+            ->set('meeting_date', now()->toDateString())
+            ->call('validation')
+            ->assertHasNoErrors();
+    }
+
+    public function test_future_meeting_date_is_rejected(): void
+    {
+        Livewire::test(AnalyzeForm::class, ['models' => $this->models()])
+            ->set('meeting_text', 'Valid transcript content.')
+            ->set('meeting_title', 'Q3 Planning')
+            ->set('meeting_date', now()->addDay()->toDateString())
+            ->call('validation')
+            ->assertHasErrors(['meeting_date' => 'before_or_equal']);
+    }
+
+    public function test_empty_meeting_date_is_normalized_and_not_required(): void
+    {
+        Livewire::test(AnalyzeForm::class, ['models' => $this->models()])
+            ->set('meeting_text', 'Valid transcript content.')
+            ->set('meeting_title', 'Q3 Planning')
+            ->set('meeting_date', '')
+            ->call('validation')
+            ->assertHasNoErrors()
+            ->assertSet('meeting_date', null);
     }
 }
