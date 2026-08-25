@@ -94,6 +94,13 @@ class AnalysisDetailModal extends Component
         $this->reAnalyzeStage = 'analyzing';
         $this->reAnalyzeProgress = 10;
         $this->reAnalyzeLabel = 'Analyzing transcript...';
+
+        // Update meeting status to ANALYZING when re-analysis starts
+        $this->analysis->meeting->update(['status' => 'ANALYZING']);
+        $this->meeting = $this->analysis->meeting->fresh();
+
+        // Dispatch browser event to update history table in real-time
+        $this->dispatch('meetingStatusUpdated', meetingId: $this->meeting->id, status: 'ANALYZING');
     }
 
     public function executeReAnalyze(): void
@@ -131,7 +138,14 @@ class AnalysisDetailModal extends Component
         $this->reAnalyzeProgress = 100;
         $this->reAnalyzeLabel = 'Re-analysis completed';
 
-        // TODO: Update history table status when re-analysis completes (requires Livewire component for history table)
+        // Update meeting status to COMPLETED on successful re-analysis
+        if ($this->analysis && $this->analysis->meeting) {
+            $this->analysis->meeting->update(['status' => 'COMPLETED']);
+            $this->meeting = $this->analysis->meeting->fresh();
+
+            // Dispatch browser event to update history table in real-time
+            $this->dispatch('meetingStatusUpdated', meetingId: $this->meeting->id, status: 'COMPLETED');
+        }
     }
 
     public function retryReAnalyze(): void
@@ -149,13 +163,20 @@ class AnalysisDetailModal extends Component
             $this->analysis->refresh();
         }
 
+        // Update meeting status to FAILED on re-analysis failure
+        if ($this->analysis && $this->analysis->meeting) {
+            $this->analysis->meeting->update(['status' => 'FAILED']);
+            $this->meeting = $this->analysis->meeting->fresh();
+
+            // Dispatch browser event to update history table in real-time
+            $this->dispatch('meetingStatusUpdated', meetingId: $this->meeting->id, status: 'FAILED');
+        }
+
         $this->reAnalyzeStage = 'error';
         $this->reAnalyzeProgress = 0;
         $this->reAnalyzeLabel = 'Re-analysis failed';
         $this->reAnalyzeError = $error;
         $this->reAnalyzeErrorCategory = $category;
-
-        // TODO: Update history table status when re-analysis fails (requires Livewire component for history table)
     }
 
     private function resetReAnalyze(): void

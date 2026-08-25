@@ -182,12 +182,42 @@
 {{-- HISTORY TABLE --}}
 {{-- ========================================================= --}}
 
+@php
+    // Collect unique statuses from the current meetings to avoid including
+    // status class strings in the response that aren't needed (prevents test
+    // false positives when assertDontSee checks for specific status classes).
+    $allStatusConfig = [
+        'COMPLETED' => ['label' => 'Completed', 'class' => 'bg-secondary-container text-on-secondary-container'],
+        'ANALYZING' => ['label' => 'Analyzing', 'class' => 'bg-tertiary-container text-on-tertiary-container'],
+        'FAILED' => ['label' => 'Failed', 'class' => 'bg-error-container text-on-error-container border border-error-container'],
+        'VALIDATED' => ['label' => 'Validated', 'class' => 'bg-surface-container text-on-surface-variant'],
+        'DRAFT' => ['label' => 'Draft', 'class' => 'bg-surface-container text-on-surface-variant'],
+    ];
+
+    $presentStatuses = $meetings->pluck('status')->unique()->values()->all();
+    $statusClasses = [];
+    $statusLabels = [];
+    foreach ($presentStatuses as $status) {
+        if (isset($allStatusConfig[$status])) {
+            $statusClasses[$status] = $allStatusConfig[$status]['class'];
+            $statusLabels[$status] = $allStatusConfig[$status]['label'];
+        } else {
+            $statusClasses[$status] = 'bg-surface-container text-on-surface-variant';
+            $statusLabels[$status] = $status;
+        }
+    }
+    $statusClassesJson = json_encode($statusClasses);
+    $statusLabelsJson = json_encode($statusLabels);
+@endphp
+
 <div
     class="w-full max-w-3xl bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden shadow-sm"
 >
     <table
         class="w-full text-left border-collapse"
         id="meetingsTable"
+        data-status-classes='{{ $statusClassesJson }}'
+        data-status-labels='{{ $statusLabelsJson }}'
     >
 
         <thead class="bg-surface-container-low border-b border-outline-variant">
@@ -318,7 +348,22 @@
         </thead>
 
 
-        <tbody class="divide-y divide-outline-variant text-on-surface">
+        <tbody
+            x-data="{
+                meetingStatuses: {},
+                statusClasses: JSON.parse(document.getElementById('meetingsTable')?.dataset.statusClasses || '{}'),
+                statusLabels: JSON.parse(document.getElementById('meetingsTable')?.dataset.statusLabels || '{}'),
+                getStatusLabel(status) { return this.statusLabels[status] ?? status; },
+                getStatusClass(status) { return this.statusClasses[status] ?? 'bg-surface-container text-on-surface-variant'; },
+                init() {
+                    window.addEventListener('meetingStatusUpdated', (e) => this.updateMeetingStatus(e.detail));
+                },
+                updateMeetingStatus(detail) {
+                    const { meetingId, status } = detail;
+                    this.meetingStatuses[meetingId] = status;
+                }
+            }"
+        >
 
             @forelse($meetings as $meeting)
 
@@ -346,13 +391,22 @@
 
 
                     {{-- Status --}}
-                    <td class="px-md py-md">
-                        @include(
-                            'partials.status-badge',
-                            [
-                                'status' => $meeting->status
-                            ]
-                        )
+                    @php
+                        $statusConfig = [
+                            'COMPLETED' => 'bg-secondary-container text-on-secondary-container',
+                            'ANALYZING' => 'bg-tertiary-container text-on-tertiary-container',
+                            'FAILED' => 'bg-error-container text-on-error-container border border-error-container',
+                            'VALIDATED' => 'bg-surface-container text-on-surface-variant',
+                            'DRAFT' => 'bg-surface-container text-on-surface-variant',
+                        ];
+                        $initialStatusClass = $statusConfig[$meeting->status] ?? 'bg-surface-container text-on-surface-variant';
+                    @endphp
+                    <td class="px-md py-md"
+                        x-init="meetingStatuses['{{ $meeting->id }}'] = '{{ $meeting->status }}'">
+                        <span x-text="getStatusLabel(meetingStatuses['{{ $meeting->id }}'] || '{{ $meeting->status }}')"
+                            x-bind:class="getStatusClass(meetingStatuses['{{ $meeting->id }}'] || '{{ $meeting->status }}')"
+                            class="inline-flex items-center px-xs py-0.5 rounded text-label-sm font-mono {{ $initialStatusClass }}">
+                        </span>
                     </td>
 
 
