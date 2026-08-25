@@ -148,6 +148,8 @@ This executes the following checks and produces a formatted report:
 | Frontend Build | `npm run build` | Compiles assets with Vite |
 | Clean Migrations | `php artisan migrate:fresh --force` | Verifies migrations run from zero |
 
+Additionally, `php artisan ai:status` verifies AI provider configuration readiness (FR-011) and reports READY / NOT READY per provider without exposing secrets.
+
 Example output:
 ```
 ============================================================

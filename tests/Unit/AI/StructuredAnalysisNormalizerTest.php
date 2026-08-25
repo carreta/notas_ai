@@ -159,14 +159,14 @@ class StructuredAnalysisNormalizerTest extends TestCase
         $result = $this->makeResult($this->actionItem([
             'dueDateText' => 'next week',
             'dueDate' => null,
-            'dueDateSource' => 'UNKNOWN',
+            'dueDateSource' => 'UNRESOLVED',
         ]));
 
         $normalized = $this->normalizer->normalize($result);
 
         $this->assertSame('next week', $normalized->actionItems[0]->dueDateText);
         $this->assertNull($normalized->actionItems[0]->dueDate);
-        $this->assertSame('UNKNOWN', $normalized->actionItems[0]->dueDateSource);
+        $this->assertSame('UNRESOLVED', $normalized->actionItems[0]->dueDateSource);
     }
 
     public function test_no_date_information_remains_all_null(): void

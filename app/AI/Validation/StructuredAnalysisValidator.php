@@ -15,7 +15,9 @@ final class StructuredAnalysisValidator
 
     private const PRIORITY_SOURCES = ['EXPLICIT', 'INFERRED'];
 
-    private const DUE_DATE_SOURCES = ['EXPLICIT', 'INFERRED', 'UNKNOWN'];
+    // private const DUE_DATE_SOURCES = ['EXPLICIT', 'INFERRED', 'UNKNOWN'];
+
+    private const DUE_DATE_SOURCES = ['EXPLICIT', 'RESOLVED', 'INFERRED', 'UNRESOLVED'];
 
     /**
      * Validate an untrusted associative array and build a trusted AnalysisResult.
@@ -368,7 +370,9 @@ final class StructuredAnalysisValidator
 
     private function assertDueDateConsistency(?string $dueDateSource, ?string $dueDateText, ?string $dueDate): void
     {
-        if ($dueDateSource === 'UNKNOWN') {
+        //        if ($dueDateSource === 'UNKNOWN') {
+
+        if ($dueDateSource === 'UNRESOLVED') {
             if ($dueDateText === null || $dueDate !== null) {
                 throw new AiInvalidResponseException;
             }

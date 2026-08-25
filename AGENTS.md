@@ -34,7 +34,7 @@ routes/           # Laravel route definitions
 ### Environment
 - `.env.example` is the source of truth for required environment variables
 - `.env` is local overrides; never commit `.env` secrets
-- Testing uses SQLite in-memory (`DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`)
+- Testing uses PostgreSQL (`DB_CONNECTION=pgsql`, `DB_DATABASE=notas_ia_test`), configured in `phpunit.xml` and the `composer check` test environment
 
 ---
 
@@ -83,12 +83,12 @@ composer test          # equivalent to: php artisan test
 ### Test Writing Conventions
 - Extend `Tests\TestCase` for feature tests (provides `get()`, `post()`, etc.)
 - Extend `PHPUnit\Framework\TestCase` for unit tests
-- Use database transactions or `:memory:` SQLite for isolation (configured in `phpunit.xml`)
+- Use database transactions or a fresh PostgreSQL `notas_ia_test` database for isolation (configured in `phpunit.xml`)
 - Pest plugin is installed; `it()` and `test()` aliases both work
 - Follow the existing test naming: `test_the_application_returns_a_successful_response`, `test_that_true_is_true`
 
 ### Test Isolation
-- Each test gets a fresh database / in-memory SQLite state
+- Each test gets a fresh database / PostgreSQL `notas_ia_test` state
 - Never share `$_SESSION` or static state across tests without resetting
 - Use `RefreshDatabase` trait only when explicitly needed (not in current example tests)
 

@@ -156,13 +156,13 @@ class StructuredAnalysisProcessorTest extends TestCase
         $data = $this->validBase();
         $data['action_items'][0]['due_date_text'] = 'next week';
         $data['action_items'][0]['due_date'] = null;
-        $data['action_items'][0]['due_date_source'] = 'UNKNOWN';
+        $data['action_items'][0]['due_date_source'] = 'UNRESOLVED';
 
         $result = $this->process($data);
 
         $this->assertSame('next week', $result->actionItems[0]->dueDateText);
         $this->assertNull($result->actionItems[0]->dueDate);
-        $this->assertSame('UNKNOWN', $result->actionItems[0]->dueDateSource);
+        $this->assertSame('UNRESOLVED', $result->actionItems[0]->dueDateSource);
     }
 
     public function test_nested_dtos_created(): void
@@ -314,7 +314,7 @@ class StructuredAnalysisProcessorTest extends TestCase
         $data = $this->validBase();
         $data['action_items'][0]['due_date_text'] = 'next week';
         $data['action_items'][0]['due_date'] = '2026-08-17';
-        $data['action_items'][0]['due_date_source'] = 'UNKNOWN';
+        $data['action_items'][0]['due_date_source'] = 'UNRESOLVED';
 
         $this->expectException(AiInvalidResponseException::class);
 

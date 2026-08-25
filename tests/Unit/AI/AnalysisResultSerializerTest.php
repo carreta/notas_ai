@@ -117,7 +117,7 @@ class AnalysisResultSerializerTest extends TestCase
             prioritySource: 'INFERRED',
             dueDateText: 'soon',
             dueDate: null,
-            dueDateSource: 'UNKNOWN',
+            dueDateSource: 'UNRESOLVED',
         );
         $result = new AnalysisResult('S', [new Decision('d')], [$item], [new OpenQuestion('q')]);
 

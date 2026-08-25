@@ -165,13 +165,26 @@ class StructuredAnalysisValidatorTest extends TestCase
         $data = $this->validBase();
         $data['action_items'][0]['due_date_text'] = 'next Monday';
         $data['action_items'][0]['due_date'] = null;
-        $data['action_items'][0]['due_date_source'] = 'UNKNOWN';
+        $data['action_items'][0]['due_date_source'] = 'UNRESOLVED';
 
         $result = $this->assertValid($data);
 
         $this->assertSame('next Monday', $result->actionItems[0]->dueDateText);
         $this->assertNull($result->actionItems[0]->dueDate);
-        $this->assertSame('UNKNOWN', $result->actionItems[0]->dueDateSource);
+        $this->assertSame('UNRESOLVED', $result->actionItems[0]->dueDateSource);
+    }
+
+    public function test_resolved_date_with_iso_date_is_valid(): void
+    {
+        $data = $this->validBase();
+        $data['action_items'][0]['due_date_text'] = 'next Monday';
+        $data['action_items'][0]['due_date'] = '2026-08-17';
+        $data['action_items'][0]['due_date_source'] = 'RESOLVED';
+
+        $result = $this->assertValid($data);
+
+        $this->assertSame('2026-08-17', $result->actionItems[0]->dueDate);
+        $this->assertSame('RESOLVED', $result->actionItems[0]->dueDateSource);
     }
 
     // ---------- INVALID TOP-LEVEL ----------
@@ -354,12 +367,20 @@ class StructuredAnalysisValidatorTest extends TestCase
         $this->assertInvalid($data);
     }
 
+    public function test_legacy_unknown_due_date_source_is_invalid(): void
+    {
+        $data = $this->validBase();
+        $data['action_items'][0]['due_date_source'] = 'UNKNOWN';
+
+        $this->assertInvalid($data);
+    }
+
     public function test_unresolved_with_due_date_non_null_throws(): void
     {
         $data = $this->validBase();
         $data['action_items'][0]['due_date_text'] = 'next Monday';
         $data['action_items'][0]['due_date'] = '2026-08-17';
-        $data['action_items'][0]['due_date_source'] = 'UNKNOWN';
+        $data['action_items'][0]['due_date_source'] = 'UNRESOLVED';
 
         $this->assertInvalid($data);
     }

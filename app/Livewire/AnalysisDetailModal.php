@@ -138,7 +138,7 @@ class AnalysisDetailModal extends Component
 
         Log::info('Re-analysis request prepared', [
             'meeting_id' => $meetingId,
-            'previous_analysis_status' => $previousAnalysis?->status,
+            'meeting_status' => $this->meeting->status,
             'model' => $this->reAnalyzeModel,
         ]);
 
@@ -167,7 +167,7 @@ class AnalysisDetailModal extends Component
             // Thrown by the orchestrator before any AI provider call is attempted.
             Log::error('Re-analysis failed before provider', [
                 'meeting_id' => $meetingId,
-                'previous_analysis_status' => $previousAnalysis?->status,
+                'meeting_status' => $this->meeting->status,
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
             ]);
@@ -180,7 +180,7 @@ class AnalysisDetailModal extends Component
 
             Log::error('Re-analysis failed', [
                 'meeting_id' => $meetingId,
-                'previous_analysis_status' => $previousAnalysis?->status,
+                'meeting_status' => $this->meeting->status,
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
             ]);
@@ -196,7 +196,7 @@ class AnalysisDetailModal extends Component
             // e.g. AI_INVALID_RESPONSE apart from a generic failure.
             Log::error('Re-analysis failed', [
                 'meeting_id' => $meetingId,
-                'previous_analysis_status' => $previousAnalysis?->status,
+                'meeting_status' => $this->meeting->status,
                 'category' => $outcome->category,
             ]);
 
@@ -228,7 +228,7 @@ class AnalysisDetailModal extends Component
         // Update meeting status to COMPLETED on successful re-analysis
         if ($this->analysis && $this->analysis->meeting) {
             $this->analysis->meeting->update(['status' => 'COMPLETED']);
-            $this->meeting = $this->analysis->meeting->fresh();
+            $this->meeting = Meeting::find($this->analysis->meeting_id);
 
             // Dispatch browser event to update history table in real-time
             $this->dispatch('meetingStatusUpdated', meetingId: $this->meeting->id, status: 'COMPLETED');
